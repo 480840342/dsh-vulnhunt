@@ -1,0 +1,9 @@
+{
+  "name": "dsh-pentest-client-build-deps",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Isolated client bundling dependencies; React is provided by the DSH loader.",
+  "dependencies": {
+    "@xyflow/react": "12.11.3"
+  }
+}

@@ -1,0 +1,38 @@
+# The dsh-pentest bundle patch: the penetration-testing surface over
+# dsh-base + dsh-web-app. The bundle is one self-contained package — every
+# row resolves to a subpath of the bundle package itself, so the whole thing
+# installs from a single tarball via `dsh plugin add`.
+#
+# The patch contributes three things:
+# 1. the sqlite backend row, as a subpath of this package;
+# 2. the Web surface row (the per-session 渗透 view tab), whose client face is
+#    the package's `./client` export;
+# 3. a storage-domain route selecting the sqlite backend for the `pentest`
+#    domain only — the override replaces the targeted row's whole config, so
+#    the host default backend is restated here.
+#
+# The host pentest plugin belongs exclusively to the `pentest` agent preset.
+# Registering it here as well duplicates its scoped tool catalog whenever that
+# preset is selected, causing client command invalidation loops.
+
+- insert:
+    - id: ui-pentest
+      name: '@howmp/dsh-pentest/ui-pentest'
+
+    - id: storage-sqlite
+      name: '@howmp/dsh-pentest/storage-sqlite'
+      config:
+        path: !!js dshHomePath('storages', 'pentest-sessions.db')
+
+- id: storage-domain
+  config:
+    backend: json
+    routes:
+      pentest: sqlite
+
+# DSH rc.6 replaces this row's configured roots with its bundled preset root
+# during profile composition. `preset-root` adds this package's read-only root
+# after `agent-presets` is constructed, without copying files into DSH_HOME.
+- insert:
+    - id: pentest-preset-root
+      name: '@howmp/dsh-pentest/preset-root'
