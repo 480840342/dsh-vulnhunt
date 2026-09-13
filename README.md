@@ -4,7 +4,7 @@
 它把侦察、资产归档、逐项验证、证据复核和报告生成连接成一条可追踪的工作流，并在 Web 中提供探索链路、
 漏洞、资产和报告视图。
 
-当前实现版本：`0.1.0-rc.27`
+当前实现版本：`0.1.0-rc.28`
 
 ## 项目特点
 
@@ -15,6 +15,7 @@
 - **低噪声策略**：识别 WAF、CDN、风控和限速后降低频率与并发，避免高强度 fuzz、批量爆破和破坏性验证。
 - **覆盖检查**：对每个资产登记检查项；未覆盖资产、未完成任务或阻塞项存在时只输出阶段报告。
 - **Skill 融合**：吸收 `clown-src-6k-skill` 的锁面/自由跳、一种子闭环、短表、价值排序、黑盒/白盒双轨和按特征选择知识模块。
+- **输入框兼容修复**：随包分发 DSH 会话组件修复，覆盖文字不可见、清空草稿后的高度和翻译扩展引起的 DOM 冲突；Windows 启动脚本自动执行。
 
 本目录是自包含 bundle 包（`@howmp/dsh-pentest`）：宿主插件、Web 界面、SQLite 后端和渗透模式预设通过包内
 `exports` 一同分发。Release 资产可直接由 `dsh plugin add` 安装。
@@ -33,7 +34,22 @@ dsh plugin --profile web add https://github.com/baianquanzu/dsh-pentest/releases
 dsh plugin --profile web add file:C:\path\to\dsh-pentest.tar.gz
 ```
 
-重启 dsh 后，在新会话中选择自动注册的「渗透模式」。
+直接用 `dsh plugin add` 安装的用户，还需执行包内的输入框修复脚本。默认 Windows 安装位置：
+
+```powershell
+node "$env:USERPROFILE\.dsh\profiles\web\node_modules\@howmp\dsh-pentest\scripts\repair-composer.mjs"
+```
+
+Linux/macOS：
+
+```bash
+node "${DSH_HOME:-$HOME/.dsh}/profiles/web/node_modules/@howmp/dsh-pentest/scripts/repair-composer.mjs"
+```
+
+自定义 `DSH_HOME` 或 profile 时调整脚本路径。脚本默认通过 `npm root -g` 定位全局 DSH；
+非全局安装可附加 `--host-root /path/to/node_modules/@deepseek-ai/dsh`。
+支持会话组件 `0.1.0-rc.6`、`0.1.0-rc.8`，修改前自动备份，重复运行不会重复修改，未知版本会报错而不写入。
+修复后停止并重新启动 DSH Web，在浏览器强制刷新，然后在新会话中选择「渗透模式」。
 
 ### 本地源码启动
 
@@ -42,6 +58,9 @@ Windows 用户可以直接运行：
 ```powershell
 .\start-pentest.bat
 ```
+
+启动脚本会自动运行上述修复。旧版输入框补丁曾只存在于开发电脑的全局 DSH 中；从 `rc.28` 起，
+源码 ZIP 和 Release 安装包都包含修复脚本。升级 DSH 后请重新运行启动脚本或输入框修复命令。
 
 手动构建和校验：
 

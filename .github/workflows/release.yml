@@ -20,7 +20,12 @@ jobs:
           cache: npm
 
       - name: Test
-        run: npm ci --legacy-peer-deps && npm test
+        env:
+          DSH_HOST_NODE_MODULES: ${{ github.workspace }}/.tmp-build/host/node_modules/@deepseek-ai/dsh/node_modules
+        run: |
+          npm ci --legacy-peer-deps
+          npm install --prefix .tmp-build/host --ignore-scripts --no-audit --no-fund @deepseek-ai/dsh@0.1.0-rc.8
+          npm test
 
       - name: Build release archive
         shell: bash
@@ -28,6 +33,7 @@ jobs:
           mkdir dist
           npm pack --pack-destination dist
           mv dist/*.tgz dist/dsh-pentest.tar.gz
+          tar -tf dist/dsh-pentest.tar.gz | grep -Fx 'package/scripts/repair-composer.mjs'
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

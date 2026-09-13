@@ -88,3 +88,29 @@ not included in the installed DSH distribution.
 Coverage is opt-in (`npm run test:host -- --coverage`), with the documented
 100% thresholds preserved. It requires the matching Vitest coverage provider;
 normal test runs do not claim coverage or install the provider automatically.
+
+## Composer repair regression
+
+`repair-composer.mjs` is shipped in the npm archive and invoked by the Windows
+launcher before Web starts. It recognizes conversation components rc.6 and rc.8,
+backs up the original file, and refuses unknown versions or source layouts.
+`--check` is read-only (exit 2 means a repair is needed).
+
+For browser regression, download each original component with `npm pack
+@deepseek-ai/dsh-client-ui-conversation@0.1.0-rc.6` (and rc.8) and extract it
+under `.tmp-build/composer-rc6` / `.tmp-build/composer-rc8`. Install isolated
+React dependencies with:
+
+```sh
+npm install --prefix .tmp-build/browser-deps --ignore-scripts react@18.3.1 react-dom@18.3.1
+node scripts/composer-browser-fixture.mjs .tmp-build/composer-rc6/package
+node scripts/composer-browser-fixture.mjs .tmp-build/composer-rc8/package
+```
+
+Serve `.tmp-build` locally and open `/browser-0.1.0-rc.8/index.html` with
+Playwright CLI. Run `playwright-cli run-code --filename scripts/composer-browser-check.js`.
+Create `output/playwright` first for screenshots. The fixture uses the actual
+upstream InputBar function and CSS, stubbing only its external services; it
+sends no model requests. Checks cover both versions at desktop/mobile widths,
+translation DOM mutation, select-all/delete, empty deletion, button/Enter
+submission, and typing again. `--original` builds an unpatched control fixture.

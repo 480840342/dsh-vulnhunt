@@ -13,3 +13,5 @@ src/dsh-client-ui-pentest/vitest.config.ts
 .DS_Store
 Thumbs.db
 *.log
+.playwright-cli/
+output/playwright/
