@@ -4,7 +4,7 @@
 它把侦察、资产归档、逐项验证、证据复核和报告生成连接成一条可追踪的工作流，并在 Web 中提供探索链路、
 漏洞、资产和报告视图。
 
-当前实现版本：`0.1.0-rc.28`
+当前实现版本：`0.1.0-rc.29`
 
 ## 项目特点
 
@@ -16,6 +16,7 @@
 - **覆盖检查**：对每个资产登记检查项；未覆盖资产、未完成任务或阻塞项存在时只输出阶段报告。
 - **Skill 融合**：吸收 `clown-src-6k-skill` 的锁面/自由跳、一种子闭环、短表、价值排序、黑盒/白盒双轨和按特征选择知识模块。
 - **输入框兼容修复**：随包分发 DSH 会话组件修复，覆盖文字不可见、清空草稿后的高度和翻译扩展引起的 DOM 冲突；Windows 启动脚本自动执行。
+- **Burp MCP 模式**：可选接入 Burp 的 legacy SSE MCP，通过 `mcp-remote` 转为 DSH stdio；自动重连、超时和离线降级配置不会影响未使用 Burp 的安装。
 
 本目录是自包含 bundle 包（`@howmp/dsh-pentest`）：宿主插件、Web 界面、SQLite 后端和渗透模式预设通过包内
 `exports` 一同分发。Release 资产可直接由 `dsh plugin add` 安装。
@@ -61,6 +62,37 @@ Windows 用户可以直接运行：
 
 启动脚本会自动运行上述修复。旧版输入框补丁曾只存在于开发电脑的全局 DSH 中；从 `rc.28` 起，
 源码 ZIP 和 Release 安装包都包含修复脚本。升级 DSH 后请重新运行启动脚本或输入框修复命令。
+
+### Burp MCP 模式
+
+如果本机存在默认 bridge `D:\burp-mcp\node_modules\mcp-remote\dist\proxy.js`，启动脚本会自动配置 Burp MCP；
+也可以显式指定：
+
+```powershell
+.\start-pentest.bat -BurpMcp -BurpMcpUrl http://127.0.0.1:9876/ `
+  -BurpMcpBridge D:\burp-mcp\node_modules\mcp-remote\dist\proxy.js
+```
+
+其他目录使用环境变量：
+
+```powershell
+$env:DSH_BURP_MCP_BRIDGE = 'D:\burp-mcp\node_modules\mcp-remote\dist\proxy.js'
+$env:DSH_BURP_MCP_URL = 'http://127.0.0.1:9876/'
+.\start-pentest.bat -BurpMcp
+```
+
+配置器会更新 `$DSH_HOME\profiles\web\cordis.patch.yml`，写入 `@deepseek-ai/dsh-mcp-client`、stdio bridge、
+legacy SSE transport 和重连策略，并保留原文件备份。Burp MCP 工具在模型目录中通常显示为 `mcp__burp__*`；
+渗透模式会先检查实际工具目录和参数，再把 Burp 的流量、请求、响应和技术栈线索归档到资产与事实记录。
+Burp 未启动或 MCP 暂时断开时，连接会标记为可重试/阻塞，其他侦察和测试任务仍可继续。
+
+关闭已由本项目管理的 Burp MCP 配置：
+
+```powershell
+.\start-pentest.bat -DisableBurpMcp
+```
+
+Burp 端建议保持监听在本机回环地址，并在 Burp MCP 设置中按授权范围配置 HTTP 请求和项目数据权限。
 
 手动构建和校验：
 

@@ -96,6 +96,24 @@ launcher before Web starts. It recognizes conversation components rc.6 and rc.8,
 backs up the original file, and refuses unknown versions or source layouts.
 `--check` is read-only (exit 2 means a repair is needed).
 
+`configure-burp-mcp.mjs` adds an optional Burp bridge to the selected DSH
+profile. It supports Burp's legacy SSE endpoint through `mcp-remote`, keeps
+the server name stable as `burp`, enables reconnect/backoff, and uses
+`failOnStartupError: false` so a stopped Burp instance does not prevent the
+pentest mode from starting. It writes a marked block and preserves the
+original profile patch as a backup.
+
+```powershell
+node scripts/configure-burp-mcp.mjs `
+  --url http://127.0.0.1:9876/ `
+  --bridge-proxy D:\burp-mcp\node_modules\mcp-remote\dist\proxy.js
+node scripts/configure-burp-mcp.mjs --disable
+```
+
+The launcher auto-detects the same Windows bridge path. A custom installation
+can use `DSH_BURP_MCP_URL` and `DSH_BURP_MCP_BRIDGE`. Existing unmarked
+`serverName: burp` entries are preserved to avoid duplicate MCP registrations.
+
 For browser regression, download each original component with `npm pack
 @deepseek-ai/dsh-client-ui-conversation@0.1.0-rc.6` (and rc.8) and extract it
 under `.tmp-build/composer-rc6` / `.tmp-build/composer-rc8`. Install isolated
