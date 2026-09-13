@@ -1,6 +1,12 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to package
+        required: true
+        type: string
   push:
     tags:
       - 'v*'
@@ -13,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -21,7 +29,7 @@ jobs:
 
       - name: Test
         env:
-          DSH_HOST_NODE_MODULES: ${{ github.workspace }}/.tmp-build/host/node_modules/@deepseek-ai/dsh/node_modules
+          DSH_HOST_NODE_MODULES: ${{ github.workspace }}/.tmp-build/host/node_modules
         run: |
           npm ci --legacy-peer-deps
           npm install --prefix .tmp-build/host --ignore-scripts --no-audit --no-fund @deepseek-ai/dsh@0.1.0-rc.8
@@ -38,5 +46,6 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           generate_release_notes: true
           files: dist/*.tar.gz
