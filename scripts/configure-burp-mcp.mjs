@@ -17,11 +17,17 @@ function findNode() {
   return process.env.DSH_BURP_MCP_NODE ?? process.execPath
 }
 
+function absolutePath(value) {
+  const path = String(value)
+  if (/^[A-Za-z]:[\\/]/.test(path)) return path.replaceAll('\\', '/')
+  return resolve(path).replaceAll('\\', '/')
+}
+
 function findBridge() {
   const candidates = [
     process.env.DSH_BURP_MCP_BRIDGE,
     'D:/burp-mcp/node_modules/mcp-remote/dist/proxy.js',
-  ].filter(Boolean).map(value => resolve(value))
+  ].filter(Boolean).map(absolutePath)
   return candidates.find(existsSync)
 }
 
@@ -32,10 +38,10 @@ function profilePatchPath({ dshHome, profile, config }) {
 }
 
 export function renderBurpPatch({ url, bridge, node }) {
-  const normalizedBridge = resolve(bridge).replaceAll('\\', '/')
+  const normalizedBridge = absolutePath(bridge)
   const marker = '/node_modules/'
-  const cwd = normalizedBridge.includes(marker) ? normalizedBridge.slice(0, normalizedBridge.indexOf(marker)) : dirname(bridge)
-  return `${START}\n- id: ${SERVER_ID}\n  config:\n    transport: stdio\n    serverName: burp\n    command: ${yamlString(node)}\n    args:\n      - ${yamlString(bridge)}\n      - ${yamlString(url)}\n      - '--transport'\n      - 'sse-only'\n    cwd: ${yamlString(cwd)}\n    toolCallTimeoutMs: 60000\n    reconnect:\n      enabled: true\n      initialDelayMs: 1000\n      maxDelayMs: 30000\n      maxAttempts: 10\n${END}`
+  const cwd = normalizedBridge.includes(marker) ? normalizedBridge.slice(0, normalizedBridge.indexOf(marker)) : dirname(normalizedBridge)
+  return `${START}\n- id: ${SERVER_ID}\n  config:\n    transport: stdio\n    serverName: burp\n    command: ${yamlString(node)}\n    args:\n      - ${yamlString(normalizedBridge)}\n      - ${yamlString(url)}\n      - '--transport'\n      - 'sse-only'\n    cwd: ${yamlString(cwd)}\n    toolCallTimeoutMs: 60000\n    reconnect:\n      enabled: true\n      initialDelayMs: 1000\n      maxDelayMs: 30000\n      maxAttempts: 10\n${END}`
 }
 
 class Expression { constructor(value) { this.value = value } }
@@ -80,7 +86,7 @@ export function configureBurpMcp({ config, dshHome, profile = 'web', url = proce
   if (!disable) {
     if (!bridge) throw new Error('Burp MCP bridge not found. Pass --bridge-proxy or set DSH_BURP_MCP_BRIDGE.')
     if (!/^https?:\/\//.test(url)) throw new Error(`Burp MCP URL must use http:// or https://: ${url}`)
-    next = `${next.trimEnd()}\n\n${renderBurpPatch({ url, bridge: resolve(bridge), node: resolve(node) })}\n`
+    next = `${next.trimEnd()}\n\n${renderBurpPatch({ url, bridge: absolutePath(bridge), node: absolutePath(node) })}\n`
   }
   const changed = next !== original
   if (changed && !check) {
