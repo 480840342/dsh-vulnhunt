@@ -4,7 +4,7 @@
 它把侦察、资产归档、逐项验证、证据复核和报告生成连接成一条可追踪的工作流，并在 Web 中提供探索链路、
 漏洞、资产和报告视图。
 
-当前实现版本：`0.1.0-rc.29`
+当前实现版本：`0.1.0-rc.30`
 
 ## 项目特点
 
@@ -65,7 +65,8 @@ Windows 用户可以直接运行：
 
 ### Burp MCP 模式
 
-如果本机存在默认 bridge `D:\burp-mcp\node_modules\mcp-remote\dist\proxy.js`，启动脚本会自动配置 Burp MCP；
+启动时不连接 Burp。点击输入框左下角 **+**，选择 **burp-connect · 连接 Burp MCP**；断开时选择 **burp-disconnect · 断开 Burp MCP**。
+连接由当前 DSH 进程内的会话共享，重启后需重新连接。默认 bridge 为 `D:\burp-mcp\node_modules\mcp-remote\dist\proxy.js`；
 也可以显式指定：
 
 ```powershell
@@ -81,18 +82,26 @@ $env:DSH_BURP_MCP_URL = 'http://127.0.0.1:9876/'
 .\start-pentest.bat -BurpMcp
 ```
 
-配置器会更新 `$DSH_HOME\profiles\web\cordis.patch.yml`，写入 `@deepseek-ai/dsh-mcp-client`、stdio bridge、
-legacy SSE transport 和重连策略，并保留原文件备份。Burp MCP 工具在模型目录中通常显示为 `mcp__burp__*`；
+`-BurpMcp` 只保存连接参数，不会自动连接。配置器更新 `$DSH_HOME\profiles\web\cordis.patch.yml`，保存 stdio bridge、
+legacy SSE transport 和重连策略，并保留原文件备份。启动脚本会迁移旧的 Burp 自动连接配置。Burp MCP 工具在模型目录中通常显示为 `mcp__burp__*`；
 渗透模式会先检查实际工具目录和参数，再把 Burp 的流量、请求、响应和技术栈线索归档到资产与事实记录。
 Burp 未启动或 MCP 暂时断开时，连接会标记为可重试/阻塞，其他侦察和测试任务仍可继续。
 
-关闭已由本项目管理的 Burp MCP 配置：
+清除已保存的 Burp MCP 连接参数（正在运行的连接请用加号菜单断开）：
 
 ```powershell
 .\start-pentest.bat -DisableBurpMcp
 ```
 
 Burp 端建议保持监听在本机回环地址，并在 Burp MCP 设置中按授权范围配置 HTTP 请求和项目数据权限。
+
+### 模式切换与渗透入口排查
+
+- 选择模式应在新会话发送首条消息之前完成。模式按钮与菜单勾选不一致时，先关闭本页自动翻译并强制刷新；rc.30 为模式标签增加了防翻译处理。
+- **轨迹** 是 DSH 的通用执行日志，**渗透** 是本插件的探索链路、资产和漏洞视图。发送首条消息后，会话顶部才显示这些标签。
+- 有“渗透模式”名称但没有“渗透”标签时，检查是否安装了完整 bundle；仅复制 `preset/pentest` 不会安装前端。运行项目的 `start-pentest.bat` 重新安装，然后重启 DSH 并按 Ctrl+F5。
+- rc.30 的启动脚本每次重新打包，并比较已安装前端文件，避免同版本旧包一直被复用。
+- “渗透”标签存在但图为空，表示当前会话尚无 `pentest_*` 工具记录；普通聊天和 Shell 调用不会自动变成探索图。
 
 手动构建和校验：
 

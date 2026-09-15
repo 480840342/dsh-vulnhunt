@@ -96,11 +96,11 @@ launcher before Web starts. It recognizes conversation components rc.6 and rc.8,
 backs up the original file, and refuses unknown versions or source layouts.
 `--check` is read-only (exit 2 means a repair is needed).
 
-`configure-burp-mcp.mjs` adds an optional Burp bridge to the selected DSH
-profile. It supports Burp's legacy SSE endpoint through `mcp-remote`, keeps
-the server name stable as `burp`, enables reconnect/backoff, and uses
-`failOnStartupError: false` so a stopped Burp instance does not prevent the
-pentest mode from starting. It writes a marked block and preserves the
+`configure-burp-mcp.mjs` stores parameters for the manual Burp connection commands.
+Use the composer + menu to connect or disconnect. It supports legacy SSE through `mcp-remote`, keeps
+the server name stable as `burp`, and enables reconnect/backoff after a successful
+manual connection. A stopped Burp instance produces a visible command error and does
+not affect DSH startup. The configurator writes a marked block and preserves the
 original profile patch as a backup.
 
 ```powershell
@@ -110,9 +110,9 @@ node scripts/configure-burp-mcp.mjs `
 node scripts/configure-burp-mcp.mjs --disable
 ```
 
-The launcher auto-detects the same Windows bridge path. A custom installation
-can use `DSH_BURP_MCP_URL` and `DSH_BURP_MCP_BRIDGE`. Existing unmarked
-`serverName: burp` entries are preserved to avoid duplicate MCP registrations.
+The launcher uses the same Windows bridge path when `-BurpMcp` is passed. A custom
+installation can use `DSH_BURP_MCP_URL` and `DSH_BURP_MCP_BRIDGE`. Existing eager
+`serverName: burp` entries are migrated to the manual command configuration.
 
 For browser regression, download each original component with `npm pack
 @deepseek-ai/dsh-client-ui-conversation@0.1.0-rc.6` (and rc.8) and extract it

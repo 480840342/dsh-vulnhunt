@@ -21,12 +21,12 @@ describe('Burp MCP profile configuration', () => {
       bridge: 'D:/tools/burp/node_modules/mcp-remote/dist/proxy.js',
       node: 'C:/Program Files/nodejs/node.exe',
     })
-    expect(patch).toContain("name: '@deepseek-ai/dsh-mcp-client'")
+    expect(patch).toContain('- id: burp-mcp')
+    expect(patch).not.toContain("name: '@deepseek-ai/dsh-mcp-client'")
     expect(patch).toContain('serverName: burp')
     expect(patch).toContain("- 'sse-only'")
     expect(patch).toContain("cwd: 'D:/tools/burp'")
-    expect(patch).toContain('failOnStartupError: false')
-    expect(patch).toContain('maxAttempts: 1000')
+    expect(patch).toContain('maxAttempts: 10')
   })
 
   it('writes an idempotent marked block and preserves the original config', () => {
@@ -38,15 +38,16 @@ describe('Burp MCP profile configuration', () => {
     expect(configureBurpMcp({ config: file, url: 'http://127.0.0.1:9876/', bridge: process.execPath, node: process.execPath }).changed).toBe(false)
   })
 
-  it('preserves a pre-existing unmarked burp registration without duplicating it', () => {
+  it('migrates a pre-existing eager burp registration to manual mode', () => {
     const file = fixture("- insert:\n    - id: mcp-burp\n      name: '@deepseek-ai/dsh-mcp-client'\n      config:\n        serverName: burp\n")
     const result = configureBurpMcp({ config: file, bridge: process.execPath, node: process.execPath })
-    expect(result).toMatchObject({ changed: false, existing: true, enabled: true })
+    expect(result).toMatchObject({ changed: true, manual: true, enabled: false })
+    expect(readFileSync(file, 'utf8')).not.toContain('@deepseek-ai/dsh-mcp-client')
     expect(readFileSync(file, 'utf8').match(/serverName: burp/g)).toHaveLength(1)
   })
 
   it('supports read-only checks and disabling a managed block', () => {
-    const file = fixture('base:\n')
+    const file = fixture('# base\n')
     configureBurpMcp({ config: file, bridge: process.execPath, node: process.execPath })
     const check = configureBurpMcp({ config: file, bridge: process.execPath, node: process.execPath, check: true })
     expect(check.changed).toBe(false)
@@ -57,8 +58,8 @@ describe('Burp MCP profile configuration', () => {
   })
 
   it('rejects malformed URLs before writing', () => {
-    const file = fixture('base:\n')
+    const file = fixture('# base\n')
     expect(() => configureBurpMcp({ config: file, url: '127.0.0.1:9876', bridge: process.execPath, node: process.execPath })).toThrow()
-    expect(readFileSync(file, 'utf8')).toBe('base:\n')
+    expect(readFileSync(file, 'utf8')).toBe('# base\n')
   })
 })

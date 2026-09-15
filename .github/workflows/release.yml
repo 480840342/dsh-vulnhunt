@@ -42,6 +42,8 @@ jobs:
           npm pack --pack-destination dist
           mv dist/*.tgz dist/dsh-pentest.tar.gz
           tar -tf dist/dsh-pentest.tar.gz | grep -Fx 'package/scripts/repair-composer.mjs'
+          tar -tf dist/dsh-pentest.tar.gz | grep -Fx 'package/scripts/burp-mcp.mjs'
+          tar -tf dist/dsh-pentest.tar.gz | grep -Fx 'package/scripts/repair-preset.mjs'
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

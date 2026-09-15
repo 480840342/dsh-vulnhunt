@@ -81,7 +81,7 @@ export function findConversation(hostRoot) {
   return dirname(require.resolve(`${PACKAGE}/package.json`))
 }
 
-function globalHost() {
+export function globalHost() {
   // Avoid a shell invocation: Windows npm.cmd needs cmd.exe, npm's JS entry does not.
   const npmCandidates = [join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')]
   if (process.env.npm_execpath) npmCandidates.unshift(process.env.npm_execpath)

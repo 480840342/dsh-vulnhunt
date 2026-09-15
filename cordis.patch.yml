@@ -36,3 +36,7 @@
 - insert:
     - id: pentest-preset-root
       name: '@howmp/dsh-pentest/preset-root'
+
+- insert:
+    - id: burp-mcp
+      name: '@howmp/dsh-pentest/burp-mcp'

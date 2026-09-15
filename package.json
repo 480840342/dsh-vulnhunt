@@ -1,7 +1,7 @@
 {
   "name": "@howmp/dsh-pentest",
   "description": "DSH 渗透测试模式：以探索链路记录目标、线索、资产与漏洞，并在 Web 中可视化展示。",
-  "version": "0.1.0-rc.29",
+  "version": "0.1.0-rc.30",
   "publishConfig": {
     "access": "public"
   },
@@ -12,11 +12,13 @@
     "dsh-pentest-burp-mcp": "./scripts/configure-burp-mcp.mjs"
   },
   "exports": {
+    "./burp-mcp": "./scripts/burp-mcp.mjs",
     ".": "./lib/index.js",
     "./pentest": "./lib/pentest.js",
     "./storage-sqlite": "./lib/storage-sqlite.js",
     "./preset-root": "./lib/preset-root.js",
     "./ui-pentest": "./lib/ui-pentest.js",
+    "./ui-pentest/client": "./lib/ui-pentest.client.js",
     "./ui-pentest/package.json": "./package.json",
     "./client": "./lib/ui-pentest.client.js",
     "./invariant": "./lib/invariant.js",
@@ -27,11 +29,14 @@
     "lib/**/*.js",
     "scripts/repair-composer.mjs",
     "scripts/configure-burp-mcp.mjs",
+    "scripts/burp-mcp.mjs",
+    "scripts/repair-preset.mjs",
     "preset/pentest/**",
     "cordis.patch.yml"
   ],
   "license": "MIT",
   "dependencies": {
+    "js-yaml": "4.3.1",
     "@deepseek-ai/schemastery": "3.18.1",
     "zod": "^4.4.3"
   },

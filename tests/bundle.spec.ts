@@ -50,17 +50,27 @@ describe('pentest bundle', () => {
     expect((presetRoot!.insert as Array<{ id: string; name: string }>)).toEqual([
       { id: 'pentest-preset-root', name: '@howmp/dsh-pentest/preset-root' },
     ])
+    const burp = patch.find(entry => {
+      const inserted = entry.insert as Array<{ id: string; name: string }> | undefined
+      return inserted?.some(row => row.id === 'burp-mcp')
+    })
+    expect((burp!.insert as Array<{ id: string; name: string }>)).toEqual([
+      { id: 'burp-mcp', name: '@howmp/dsh-pentest/burp-mcp' },
+    ])
   })
 
   it('declares the sqlite backend runtime import contract', () => {
     const manifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8')) as {
       dependencies?: Record<string, string>
+      exports?: Record<string, string>
       peerDependencies?: Record<string, string>
     }
     expect(manifest.dependencies?.['@deepseek-ai/schemastery']).toBe('3.18.1')
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-storage']).toBe('0.1.0-rc.6')
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-storage-domain']).toBe('0.1.0-rc.6')
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.1.0-rc.6')
+    expect(manifest.exports?.['./ui-pentest/client']).toBe('./lib/ui-pentest.client.js')
+    expect(manifest.exports?.['./burp-mcp']).toBe('./scripts/burp-mcp.mjs')
     expect(manifest.peerDependenciesMeta).toBeUndefined()
   })
 })
