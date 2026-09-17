@@ -1,4 +1,4 @@
-# The backward-compatible `pentest` preset id: bug-hunting commander mode.
+# The `redteam` preset: staged, authorized red-team assessment mode.
 #
 # A copy of the shipped `standard` preset with one addition — the
 # @deepseek-ai/dsh-pentest row — and a commander persona. Everything else
@@ -23,7 +23,7 @@
   name: '@deepseek-ai/dsh-persona'
   config:
     text: >-
-      You are the authorized bug-hunting commander (decision agent), powered by the {{model}} model.
+      You are the authorized red-team assessment commander (decision agent), powered by the {{model}} model.
       Your working directory is {{cwd}}. You decide and create exploration intents; proposal generation
       and execution are delegated to subagents, which submit confirmed results directly to their assigned intent.
       Follow the pentest:protocol system-prompt section exactly.
@@ -197,7 +197,7 @@
         # an `agentPreset: code` delegation option, restrict the inherited
         # pentest composition to an execution-only child.
         persona: |-
-          你是授权挖洞执行子 agent，不是指挥官。仅执行委派任务；不要创建 goal、intent、报告，
+          你是授权红队评估执行子 agent，不是指挥官。仅执行委派任务；不要创建 goal、intent、报告，
           或继续委派。保留并遵守委派中的目标、授权范围和安全约束。
 
           委派输入必须包含目标、授权范围、父 intentId、待验证任务、已知资产及可引用的资产 ID。父 intentId
@@ -206,8 +206,8 @@
           只能在用户明确授权的目标、资产、账号、时间窗口和允许动作内执行；授权不清或停止条件触发时立即停止并回报。
           不得破坏可用性、持久化控制、隐蔽驻留、清除痕迹、真实数据外传或未经许可横向扩展。不要臆造证据、资产 ID、漏洞或复现步骤。
 
-          执行前先确认委派任务属于赏金/授权范围；明确无法获得赏金、明确不在范围或仅属无奖励噪声的问题，
-          不继续测试，也不要提交为漏洞。信息搜集类任务需把子域名、目录/端点、端口/服务、框架/技术栈、
+          执行前确认任务属于用户明确授权范围；数据模型中的 eligibility/rewardEligibility=eligible 表示已授权范围内，
+          不以赏金资格筛选红队路径。明确不在范围或停止条件已触发时不继续测试，也不要提交为漏洞。信息搜集类任务需把子域名、目录/端点、端口/服务、框架/技术栈、
           存储桶线索、前端逆向线索、组件版本与潜在 CVE 等按事实或资产分类提交；尚未验证但有价值的信息
           以“待备测”事实提交，供父 agent 后续创建 intent。若检测到 WAF/风控/封禁迹象，记录为事实后
           改用低噪声、低频率、被动或人工确认优先的方法；不要执行容易触发封禁、业务破坏、批量爆破或高强度 fuzz 的动作。
@@ -251,7 +251,7 @@
         backgroundMode: continuable
         maxDepth: 1
         persona: |-
-          你是授权挖洞执行子 agent，不是指挥官。仅执行委派任务；不要创建 goal、intent、报告，
+          你是授权红队评估执行子 agent，不是指挥官。仅执行委派任务；不要创建 goal、intent、报告，
           或继续委派。保留并遵守委派中的目标、授权范围和安全约束。
 
           委派输入必须包含目标、授权范围、父 intentId、待验证任务、已知资产及可引用的资产 ID。父 intentId
@@ -260,8 +260,8 @@
           只能在用户明确授权的目标、资产、账号、时间窗口和允许动作内执行；授权不清或停止条件触发时立即停止并回报。
           不得破坏可用性、持久化控制、隐蔽驻留、清除痕迹、真实数据外传或未经许可横向扩展。不要臆造证据、资产 ID、漏洞或复现步骤。
 
-          执行前先确认委派任务属于赏金/授权范围；明确无法获得赏金、明确不在范围或仅属无奖励噪声的问题，
-          不继续测试，也不要提交为漏洞。信息搜集类任务需把子域名、目录/端点、端口/服务、框架/技术栈、
+          执行前确认任务属于用户明确授权范围；数据模型中的 eligibility/rewardEligibility=eligible 表示已授权范围内，
+          不以赏金资格筛选红队路径。明确不在范围或停止条件已触发时不继续测试，也不要提交为漏洞。信息搜集类任务需把子域名、目录/端点、端口/服务、框架/技术栈、
           存储桶线索、前端逆向线索、组件版本与潜在 CVE 等按事实或资产分类提交；尚未验证但有价值的信息
           以“待备测”事实提交，供父 agent 后续创建 intent。若检测到 WAF/风控/封禁迹象，记录为事实后
           改用低噪声、低频率、被动或人工确认优先的方法；不要执行容易触发封禁、业务破坏、批量爆破或高强度 fuzz 的动作。
@@ -361,4 +361,4 @@
 - id: pentest
   name: '@howmp/dsh-pentest/pentest'
   config:
-    mode: bughunt
+    mode: redteam

@@ -1,10 +1,10 @@
 # dsh-pentest
 
-面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）的可恢复渗透测试模式。
-它把侦察、资产归档、逐项验证、证据复核和报告生成连接成一条可追踪的工作流，并在 Web 中提供探索链路、
-漏洞、资产和报告视图。
+面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）的可恢复授权安全测试插件。
+它提供彼此隔离的「挖洞模式」和「红队模式」，把侦察、资产归档、逐项验证、证据复核和报告生成连接成
+可追踪工作流，并在 Web 中提供探索链路、漏洞、资产和报告视图。
 
-当前实现版本：`0.1.0-rc.32`
+当前实现版本：`0.1.0-rc.33`
 
 ## 项目特点
 
@@ -17,11 +17,11 @@
 - **阶段门禁**：`scope → recon → validation → review → complete` 由 `pentest_gate` 读取持久台账判定；四类侦察、待验证线索或阻塞项未收口时不能生成最终报告。
 - **可证伪意图**：测试 intent 可记录正证据、反证据、停止条件和低噪声替代路径；重试耗尽后自动把 fallback 写入恢复状态。
 - **Skill 融合**：吸收 `clown-src-6k-skill` 的锁面/自由跳、一种子闭环、短表、价值排序、黑盒/白盒双轨和按特征选择知识模块。
-- **Redteam 工作流融合**：适配 `dsh-redteam-model` 的阶段门禁、恢复信封、证据纪律和失败熔断思路；保留当前单模式架构，不引入其十模式、全量插件或载荷知识库。
+- **双模式隔离**：旧 `pentest` 预设保留兼容 ID 并显示为「挖洞模式」；融合 `dsh-redteam-model` 阶段门禁、恢复、证据纪律和失败熔断的能力独立为「红队模式」。
 - **输入框兼容修复**：随包分发 DSH 会话组件修复，覆盖文字不可见、清空草稿后的高度和翻译扩展引起的 DOM 冲突；Windows 启动脚本自动执行。
 - **Burp MCP 模式**：可选接入 Burp 的 legacy SSE MCP，通过 `mcp-remote` 转为 DSH stdio；自动重连、超时和离线降级配置不会影响未使用 Burp 的安装。
 
-本目录是自包含 bundle 包（`@howmp/dsh-pentest`）：宿主插件、Web 界面、SQLite 后端和渗透模式预设通过包内
+本目录是自包含 bundle 包（`@howmp/dsh-pentest`）：宿主插件、Web 界面、SQLite 后端和两个安全测试预设通过包内
 `exports` 一同分发。Release 资产可直接由 `dsh plugin add` 安装。
 
 ## 安装
@@ -53,7 +53,7 @@ node "${DSH_HOME:-$HOME/.dsh}/profiles/web/node_modules/@howmp/dsh-pentest/scrip
 自定义 `DSH_HOME` 或 profile 时调整脚本路径。脚本默认通过 `npm root -g` 定位全局 DSH；
 非全局安装可附加 `--host-root /path/to/node_modules/@deepseek-ai/dsh`。
 支持会话组件 `0.1.0-rc.6`、`0.1.0-rc.8`，修改前自动备份，重复运行不会重复修改，未知版本会报错而不写入。
-修复后停止并重新启动 DSH Web，在浏览器强制刷新，然后在新会话中选择「渗透模式」。
+修复后停止并重新启动 DSH Web，在浏览器强制刷新，然后在新会话中选择「挖洞模式」或「红队模式」。
 
 ### 本地源码启动
 
@@ -87,7 +87,7 @@ $env:DSH_BURP_MCP_URL = 'http://127.0.0.1:9876/'
 
 `-BurpMcp` 只保存连接参数，不会自动连接。配置器更新 `$DSH_HOME\profiles\web\cordis.patch.yml`，保存 stdio bridge、
 legacy SSE transport 和重连策略，并保留原文件备份。启动脚本会迁移旧的 Burp 自动连接配置。Burp MCP 工具在模型目录中通常显示为 `mcp__burp__*`；
-渗透模式会先检查实际工具目录和参数，再把 Burp 的流量、请求、响应和技术栈线索归档到资产与事实记录。
+两个模式都会先检查实际工具目录和参数，再把 Burp 的流量、请求、响应和技术栈线索归档到资产与事实记录。
 Burp 未启动或 MCP 暂时断开时，连接会标记为可重试/阻塞，其他侦察和测试任务仍可继续。
 
 清除已保存的 Burp MCP 连接参数（正在运行的连接请用加号菜单断开）：
@@ -98,13 +98,13 @@ Burp 未启动或 MCP 暂时断开时，连接会标记为可重试/阻塞，其
 
 Burp 端建议保持监听在本机回环地址，并在 Burp MCP 设置中按授权范围配置 HTTP 请求和项目数据权限。
 
-### 模式切换与渗透入口排查
+### 模式切换与安全测试入口排查
 
 - 选择模式应在新会话发送首条消息之前完成。模式按钮与菜单勾选不一致时，先关闭本页自动翻译并强制刷新；rc.30 为模式标签增加了防翻译处理。
-- **轨迹** 是 DSH 的通用执行日志，**渗透** 是本插件的探索链路、资产和漏洞视图。发送首条消息后，会话顶部才显示这些标签。
-- 有“渗透模式”名称但没有“渗透”标签时，检查是否安装了完整 bundle；仅复制 `preset/pentest` 不会安装前端。运行项目的 `start-pentest.bat` 重新安装，然后重启 DSH 并按 Ctrl+F5。
+- **轨迹** 是 DSH 的通用执行日志，**挖洞/红队** 是本插件按当前预设显示的探索链路、资产和漏洞视图。发送首条消息后，会话顶部才显示这些标签。
+- 有模式名称但没有对应标签时，检查是否安装了完整 bundle；仅复制 `preset` 目录不会安装前端。运行项目的 `start-pentest.bat` 重新安装，然后重启 DSH 并按 Ctrl+F5。
 - rc.31 的启动脚本每次重新打包，并比较已安装前端文件，避免同版本旧包一直被复用。
-- “渗透”标签存在但图为空，表示当前会话尚无 `pentest_*` 工具记录；普通聊天和 Shell 调用不会自动变成探索图。
+- 模式标签存在但图为空，表示当前会话尚无 `pentest_*` 工具记录；普通聊天和 Shell 调用不会自动变成探索图。
 
 手动构建和校验：
 
@@ -117,7 +117,13 @@ npm run build:check
 
 构建完成后，使用 `dist\howmp-dsh-pentest-<version>.tgz` 安装到 DSH Web profile。插件更新后需要重启正在运行的 DSH Web 进程。
 
-## 工作流
+## 两种模式
+
+- **挖洞模式**（预设 ID 仍为 `pentest`）：面向漏洞赏金和授权挖掘，先过滤明确不可获赏金的问题，按 `completion.canFinish` 收口；不会注入红队阶段门禁协议。
+- **红队模式**（预设 ID `redteam`）：面向明确授权的安全评估和攻击路径验证，不以赏金资格筛选；`eligible` 表示已授权范围，必须依次通过 `scope → recon → validation → review` 门禁。
+- 两种模式共享兼容的 `pentest_*` 工具、SQLite 数据结构和 Web 轨迹，但系统提示词、最终报告判定、工具卡片和会话标签按预设隔离。
+
+## 红队工作流
 
 1. 创建目标并记录授权说明。
 2. 建立侦察 intent，归档子域名、端点、端口、框架和其他资产。
@@ -138,7 +144,7 @@ npm run build:check
 
 ### 模式选择
 
-![渗透模式选择](images/mode.png)
+![安全测试模式选择](images/mode.png)
 
 ### 对话与执行
 
@@ -173,11 +179,11 @@ npm run build:check
   `pentest_add_coverage` / `pentest_state` / `pentest_gate` / `pentest_graph` / `pentest_report`。资产、覆盖项和任务均带状态门槛。
 - **会话投影**（`projection.ts`）：折叠已日志化的 `pentest_*` 调用为 `{ goal, nodes, assets, tasks, coverage, edges, counts, completion, workflow }`，
   镜像 store 的引用拒绝；上限各 200，并支持旧日志回放。
-- **Web 标签页**（`src/dsh-client-ui-pentest`）：按会话注册（当前会话或列表祖先链含 `pentest` 预设即显示，
-  非渗透会话隐藏）；四个子标签——探索链路（@xyflow/react 图，边带关系胶囊：意图链/产出/推导自/证实）、
+- **Web 标签页**（`src/dsh-client-ui-pentest`）：按会话注册（当前会话或列表祖先链含 `pentest` / `redteam` 预设即显示，
+  其他会话隐藏）；主标签按模式显示“挖洞”或“红队”，含四个子标签——探索链路（@xyflow/react 图，边带关系胶囊：意图链/产出/推导自/证实）、
   漏洞（严重度/描述/可复现步骤/影响资产）、资产（列表/图两种模式）、报告（Markdown 渲染、复制与保存）。
-- **协议**（`instructions.ts`）：系统提示词段 `pentest:protocol`（order 50），先侦察再按资产推进，子 agent 通过
-  `pentest_submit` 直写父 intent；WAF 场景降低噪声；漏洞必须满足赏金资格和复核证据；与用户交互一律中文。
+- **协议**（`instructions.ts`）：系统提示词段 `pentest:protocol`（order 50）按 `bughunt` / `redteam` 配置生成；
+  两者共同强制授权边界、低噪声 WAF 策略和独立复核，红队额外启用阶段门禁和恢复协议。
 - **Skill 融合**（`src/dsh-pentest/src/clown-skill.ts`）：吸收 `clown-src-6k` 的锁面/自由跳节奏、
   一种子闭环、短表与价值排序、黑盒/白盒双轨、按特征选择知识模块和阶段自检；详细载荷资料不作为盲扫指令注入。
 - **Redteam 工作流桥接**（`src/dsh-pentest/src/redteam-model-bridge.ts`）：依据 MIT 许可项目
@@ -186,7 +192,7 @@ npm run build:check
 
 ## 已知边界
 
-- **数据库**：渗透记录写入 `$DSH_HOME/storages/pentest-sessions.db`（sqlite，经 bundle 补丁路由）。
+- **数据库**：安全测试记录写入 `$DSH_HOME/storages/pentest-sessions.db`（sqlite，经 bundle 补丁路由）。
   宿主其它域的存储不受影响（仍为宿主默认 json 后端）。
 - **授权**：只测试有授权的目标。`pentest_add_goal` 的 `authorization` 参数可填写授权说明（授权对象 /
   书面许可引用），会写入状态与最终报告留痕；它只是审计事实，不是门禁——扫描/利用动作仍受部署沙箱与
@@ -206,11 +212,11 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 ├── cordis.patch.yml           # 补丁层：UI、sqlite 后端与 storage-domain 路由
 ├── lib/                       # 构建产物（npm pack 的内容）
 │   ├── index.js               #   包入口：空 apply
-│   ├── pentest.js             #   宿主渗透插件：pentest_* 工具 + 协议注入 + 会话投影
-│   ├── preset-root.js          #   注册包内只读「渗透模式」预设目录（兼容 DSH rc.6）
-│   ├── storage-sqlite.js      #   渗透记录专用的 sqlite 后端（node:sqlite）
+│   ├── pentest.js             #   宿主安全测试插件：pentest_* 工具 + 双模式协议 + 会话投影
+│   ├── preset-root.js          #   注册包内只读安全测试预设目录（兼容 DSH rc.6）
+│   ├── storage-sqlite.js      #   安全测试记录专用的 sqlite 后端（node:sqlite）
 │   ├── ui-pentest.js          #   Web 插件宿主半：空 apply
-│   ├── ui-pentest.client.js   #   Web 插件浏览器半：渗透视图标签页（4 个子标签，@xyflow/react 内联）
+│   ├── ui-pentest.client.js   #   Web 插件浏览器半：挖洞/红队视图标签页（4 个子标签，@xyflow/react 内联）
 │   └── invariant.js           #   探索图不变量伴生（与官方各包同构，生产环境不加载）
 ├── src/                       # 源码快照（继续开发/重新构建用）
 │   ├── index.ts / invariant.ts
@@ -221,7 +227,8 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 │   ├── dsh-pentest/               # host 插件源码构建产物
 │   ├── dsh-client-ui-pentest/     # Web 界面插件源码构建产物
 │   └── dsh-storage-sqlite/        # sqlite 后端构建产物（来自 dsh 仓库，无独立源码）
-├── preset/pentest/            # 「渗透模式」agent 预设（由 bundle 自动注册）
+├── preset/pentest/            # 「挖洞模式」agent 预设（保留旧 ID）
+├── preset/redteam/            # 「红队模式」agent 预设（阶段门禁与恢复）
 ├── images/                    # README 界面预览截图
 └── README.md
 ```

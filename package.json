@@ -1,7 +1,7 @@
 {
   "name": "@howmp/dsh-pentest",
-  "description": "DSH 渗透测试模式：以探索链路记录目标、线索、资产与漏洞，并在 Web 中可视化展示。",
-  "version": "0.1.0-rc.32",
+  "description": "DSH 授权安全测试插件：独立的挖洞与红队模式，以可恢复探索链路记录资产、证据与已验证漏洞。",
+  "version": "0.1.0-rc.33",
   "publishConfig": {
     "access": "public"
   },
@@ -31,7 +31,7 @@
     "scripts/configure-burp-mcp.mjs",
     "scripts/burp-mcp.mjs",
     "scripts/repair-preset.mjs",
-    "preset/pentest/**",
+    "preset/**",
     "cordis.patch.yml"
   ],
   "license": "MIT",

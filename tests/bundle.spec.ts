@@ -13,6 +13,10 @@ import { apply as nodeApply } from '../lib/index.js'
 
 const PATCH_PATH = fileURLToPath(new URL('../cordis.patch.yml', import.meta.url))
 const PACKAGE_PATH = fileURLToPath(new URL('../package.json', import.meta.url))
+const BUGHUNT_PRESET_PATH = fileURLToPath(new URL('../preset/pentest/agent.cordis.yml', import.meta.url))
+const REDTEAM_PRESET_PATH = fileURLToPath(new URL('../preset/redteam/agent.cordis.yml', import.meta.url))
+const BUGHUNT_META_PATH = fileURLToPath(new URL('../preset/pentest/preset.yml', import.meta.url))
+const REDTEAM_META_PATH = fileURLToPath(new URL('../preset/redteam/preset.yml', import.meta.url))
 
 /** The loader's `!!js` scalar: parse as its raw expression string. */
 const jsExprTag = new yaml.Type('tag:yaml.org,2002:js', {
@@ -63,6 +67,7 @@ describe('pentest bundle', () => {
     const manifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8')) as {
       dependencies?: Record<string, string>
       exports?: Record<string, string>
+      files?: string[]
       peerDependencies?: Record<string, string>
     }
     expect(manifest.dependencies?.['@deepseek-ai/schemastery']).toBe('3.18.1')
@@ -71,6 +76,23 @@ describe('pentest bundle', () => {
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.1.0-rc.6')
     expect(manifest.exports?.['./ui-pentest/client']).toBe('./lib/ui-pentest.client.js')
     expect(manifest.exports?.['./burp-mcp']).toBe('./scripts/burp-mcp.mjs')
+    expect(manifest.files).toContain('preset/**')
     expect(manifest.peerDependenciesMeta).toBeUndefined()
+  })
+
+  it('ships distinct bug-hunting and red-team presets over the shared plugin', () => {
+    const metadata = [BUGHUNT_META_PATH, REDTEAM_META_PATH]
+      .map(path => yaml.load(readFileSync(path, 'utf8')) as { name: string })
+    expect(metadata.map(item => item.name)).toEqual(['挖洞模式', '红队模式'])
+
+    const modes = [BUGHUNT_PRESET_PATH, REDTEAM_PRESET_PATH].map((path) => {
+      const rows = yaml.load(readFileSync(path, 'utf8'), { schema: patchSchema }) as Array<{
+        id: string
+        name: string
+        config?: { mode?: string }
+      }>
+      return rows.find(row => row.id === 'pentest' && row.name === '@howmp/dsh-pentest/pentest')?.config?.mode
+    })
+    expect(modes).toEqual(['bughunt', 'redteam'])
   })
 })
