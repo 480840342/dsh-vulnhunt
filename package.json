@@ -1,7 +1,7 @@
 {
   "name": "@howmp/dsh-pentest",
   "description": "DSH 渗透测试模式：以探索链路记录目标、线索、资产与漏洞，并在 Web 中可视化展示。",
-  "version": "0.1.0-rc.31",
+  "version": "0.1.0-rc.32",
   "publishConfig": {
     "access": "public"
   },

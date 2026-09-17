@@ -4,7 +4,7 @@
 它把侦察、资产归档、逐项验证、证据复核和报告生成连接成一条可追踪的工作流，并在 Web 中提供探索链路、
 漏洞、资产和报告视图。
 
-当前实现版本：`0.1.0-rc.31`
+当前实现版本：`0.1.0-rc.32`
 
 ## 项目特点
 
@@ -14,7 +14,10 @@
 - **漏洞质量门槛**：只有符合赏金/授权范围，并具备复现步骤、观察结果、对照结果和影响证据的问题才进入 finding。
 - **低噪声策略**：识别 WAF、CDN、风控和限速后降低频率与并发，避免高强度 fuzz、批量爆破和破坏性验证。
 - **覆盖检查**：对每个资产登记检查项；未覆盖资产、未完成任务或阻塞项存在时只输出阶段报告。
+- **阶段门禁**：`scope → recon → validation → review → complete` 由 `pentest_gate` 读取持久台账判定；四类侦察、待验证线索或阻塞项未收口时不能生成最终报告。
+- **可证伪意图**：测试 intent 可记录正证据、反证据、停止条件和低噪声替代路径；重试耗尽后自动把 fallback 写入恢复状态。
 - **Skill 融合**：吸收 `clown-src-6k-skill` 的锁面/自由跳、一种子闭环、短表、价值排序、黑盒/白盒双轨和按特征选择知识模块。
+- **Redteam 工作流融合**：适配 `dsh-redteam-model` 的阶段门禁、恢复信封、证据纪律和失败熔断思路；保留当前单模式架构，不引入其十模式、全量插件或载荷知识库。
 - **输入框兼容修复**：随包分发 DSH 会话组件修复，覆盖文字不可见、清空草稿后的高度和翻译扩展引起的 DOM 冲突；Windows 启动脚本自动执行。
 - **Burp MCP 模式**：可选接入 Burp 的 legacy SSE MCP，通过 `mcp-remote` 转为 DSH stdio；自动重连、超时和离线降级配置不会影响未使用 Burp 的安装。
 
@@ -120,8 +123,10 @@ npm run build:check
 2. 建立侦察 intent，归档子域名、端点、端口、框架和其他资产。
 3. 将资产标记为 `eligible`、`unknown` 或 `excluded`，只有符合范围的资产才进入主动测试。
 4. 为资产登记覆盖项，按业务面和证据强度创建去重的测试任务。
-5. 子 agent 通过 `pentest_submit` 提交事实、资产、覆盖状态和已复核结果；网络中断时使用相同 `submissionId` 重试。
-6. 输出前检查任务、覆盖项、待验证线索和未测试资产；只有完成门槛满足时才生成最终报告。
+5. 深度测试 intent 填写 `evidencePlan.expected`、`negative`、`stopConditions` 和 `fallback`，使验证目标可证伪、可停止、可降级。
+6. 子 agent 通过 `pentest_submit` 提交事实、资产、覆盖状态和已复核结果；网络中断时使用相同 `submissionId` 重试。
+7. 阶段切换前调用 `pentest_gate`；`pentest_state.workflow.nextActions` 是重启、重连或“继续”后的恢复入口。
+8. 输出前检查任务、覆盖项、待验证线索和未测试资产；只有四道门禁全部通过时才生成最终报告。
 
 ## 使用边界
 
@@ -165,8 +170,8 @@ npm run build:check
   跨调用引用，会话投影从日志纯重放同一张图。
 - **工具**（`tools.ts`）：`pentest_submit`（子 agent 直写指定父 intent）/ `pentest_add_goal`（重置整图）/ `pentest_add_intent`（恰好一个锚点，自动建任务）/
   `pentest_add_fact` / `pentest_add_finding` / `pentest_add_asset` / `pentest_update_asset` / `pentest_update_task` /
-  `pentest_add_coverage` / `pentest_state` / `pentest_graph` / `pentest_report`。资产、覆盖项和任务均带状态门槛。
-- **会话投影**（`projection.ts`）：折叠已日志化的 `pentest_*` 调用为 `{ goal, nodes, assets, tasks, coverage, edges, counts, completion }`，
+  `pentest_add_coverage` / `pentest_state` / `pentest_gate` / `pentest_graph` / `pentest_report`。资产、覆盖项和任务均带状态门槛。
+- **会话投影**（`projection.ts`）：折叠已日志化的 `pentest_*` 调用为 `{ goal, nodes, assets, tasks, coverage, edges, counts, completion, workflow }`，
   镜像 store 的引用拒绝；上限各 200，并支持旧日志回放。
 - **Web 标签页**（`src/dsh-client-ui-pentest`）：按会话注册（当前会话或列表祖先链含 `pentest` 预设即显示，
   非渗透会话隐藏）；四个子标签——探索链路（@xyflow/react 图，边带关系胶囊：意图链/产出/推导自/证实）、
@@ -175,6 +180,9 @@ npm run build:check
   `pentest_submit` 直写父 intent；WAF 场景降低噪声；漏洞必须满足赏金资格和复核证据；与用户交互一律中文。
 - **Skill 融合**（`src/dsh-pentest/src/clown-skill.ts`）：吸收 `clown-src-6k` 的锁面/自由跳节奏、
   一种子闭环、短表与价值排序、黑盒/白盒双轨、按特征选择知识模块和阶段自检；详细载荷资料不作为盲扫指令注入。
+- **Redteam 工作流桥接**（`src/dsh-pentest/src/redteam-model-bridge.ts`）：依据 MIT 许可项目
+  `SeaOf0/dsh-redteam-model` 重写适配阶段门禁、可恢复推进、正反证据计划和工具失败降级；适配取舍见
+  [`docs/REDTEAM-MODEL-INTEGRATION.md`](docs/REDTEAM-MODEL-INTEGRATION.md)。
 
 ## 已知边界
 
@@ -202,7 +210,7 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 │   ├── preset-root.js          #   注册包内只读「渗透模式」预设目录（兼容 DSH rc.6）
 │   ├── storage-sqlite.js      #   渗透记录专用的 sqlite 后端（node:sqlite）
 │   ├── ui-pentest.js          #   Web 插件宿主半：空 apply
-│   ├── ui-pentest.client.js   #   Web 插件浏览器半：渗透视图标签页（3 个子标签，@xyflow/react 内联）
+│   ├── ui-pentest.client.js   #   Web 插件浏览器半：渗透视图标签页（4 个子标签，@xyflow/react 内联）
 │   └── invariant.js           #   探索图不变量伴生（与官方各包同构，生产环境不加载）
 ├── src/                       # 源码快照（继续开发/重新构建用）
 │   ├── index.ts / invariant.ts
@@ -221,3 +229,4 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 ## 参考项目
 
 - [ARTEX](https://github.com/Autumn-27/ARTEX)
+- [SeaOf0/dsh-redteam-model](https://github.com/SeaOf0/dsh-redteam-model)（MIT；阶段门禁、恢复与证据治理思路）
