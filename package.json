@@ -1,7 +1,7 @@
 {
   "name": "@howmp/dsh-pentest",
   "description": "DSH 授权安全测试插件：独立的挖洞与红队模式，以可恢复探索链路记录资产、证据与已验证漏洞。",
-  "version": "0.1.0-rc.33",
+  "version": "0.1.0-rc.36",
   "publishConfig": {
     "access": "public"
   },
@@ -9,7 +9,8 @@
   "main": "./lib/index.js",
   "bin": {
     "dsh-pentest-repair": "./scripts/repair-composer.mjs",
-    "dsh-pentest-burp-mcp": "./scripts/configure-burp-mcp.mjs"
+    "dsh-pentest-burp-mcp": "./scripts/configure-burp-mcp.mjs",
+    "dsh-pentest-suite": "./scripts/configure-redteam-suite.mjs"
   },
   "exports": {
     "./burp-mcp": "./scripts/burp-mcp.mjs",
@@ -30,14 +31,16 @@
     "scripts/repair-composer.mjs",
     "scripts/configure-burp-mcp.mjs",
     "scripts/burp-mcp.mjs",
+    "scripts/configure-redteam-suite.mjs",
     "scripts/repair-preset.mjs",
     "preset/**",
     "cordis.patch.yml"
   ],
   "license": "MIT",
   "dependencies": {
-    "js-yaml": "4.3.1",
     "@deepseek-ai/schemastery": "3.18.1",
+    "@dsh-external/dsh-redteam-model": "https://github.com/SeaOf0/dsh-redteam-model/archive/e549e0f2fa515cce5f71842088f75333e7e997e7.tar.gz",
+    "js-yaml": "4.3.1",
     "zod": "^4.4.3"
   },
   "dsh": {
@@ -63,6 +66,8 @@
   "scripts": {
     "repair:composer": "node scripts/repair-composer.mjs",
     "configure:burp-mcp": "node scripts/configure-burp-mcp.mjs",
+    "configure:suite": "node scripts/configure-redteam-suite.mjs",
+    "status:suite": "node scripts/configure-redteam-suite.mjs --status",
     "build": "node scripts/build.mjs",
     "build:host": "node scripts/build.mjs --target host",
     "build:client": "node scripts/build.mjs --target client",

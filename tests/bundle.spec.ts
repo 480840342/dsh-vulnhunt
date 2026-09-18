@@ -68,6 +68,7 @@ describe('pentest bundle', () => {
       dependencies?: Record<string, string>
       exports?: Record<string, string>
       files?: string[]
+      bin?: Record<string, string>
       peerDependencies?: Record<string, string>
     }
     expect(manifest.dependencies?.['@deepseek-ai/schemastery']).toBe('3.18.1')
@@ -77,6 +78,8 @@ describe('pentest bundle', () => {
     expect(manifest.exports?.['./ui-pentest/client']).toBe('./lib/ui-pentest.client.js')
     expect(manifest.exports?.['./burp-mcp']).toBe('./scripts/burp-mcp.mjs')
     expect(manifest.files).toContain('preset/**')
+    expect(manifest.files).toContain('scripts/configure-redteam-suite.mjs')
+    expect(manifest.bin?.['dsh-pentest-suite']).toBe('./scripts/configure-redteam-suite.mjs')
     expect(manifest.peerDependenciesMeta).toBeUndefined()
   })
 

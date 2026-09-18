@@ -4,7 +4,7 @@
 它提供彼此隔离的「挖洞模式」和「红队模式」，把侦察、资产归档、逐项验证、证据复核和报告生成连接成
 可追踪工作流，并在 Web 中提供探索链路、漏洞、资产和报告视图。
 
-当前实现版本：`0.1.0-rc.33`
+当前实现版本：`0.1.0-rc.36`
 
 ## 项目特点
 
@@ -20,6 +20,8 @@
 - **双模式隔离**：旧 `pentest` 预设保留兼容 ID 并显示为「挖洞模式」；融合 `dsh-redteam-model` 阶段门禁、恢复、证据纪律和失败熔断的能力独立为「红队模式」。
 - **输入框兼容修复**：随包分发 DSH 会话组件修复，覆盖文字不可见、清空草稿后的高度和翻译扩展引起的 DOM 冲突；Windows 启动脚本自动执行。
 - **Burp MCP 模式**：可选接入 Burp 的 legacy SSE MCP，通过 `mcp-remote` 转为 DSH stdio；自动重连、超时和离线降级配置不会影响未使用 Burp 的安装。
+- **完整安全能力套件**：固定整合 `dsh-redteam-model` 的 7 个补充专业模式与 15 个安全插件，覆盖 AttackAtlas、扫描器、Semgrep、MCP Studio、会话脉冲、轨迹仓库、成果面板、阶段门禁、恢复推进和子代理协作。
+- **安全白名单部署**：不加载免杀规避模式、拒答绕过插件和 WebShell 管理器；上游预设中的反拒答指令会在部署副本中替换为授权范围、低噪声和破坏性操作确认约束。
 
 本目录是自包含 bundle 包（`@howmp/dsh-pentest`）：宿主插件、Web 界面、SQLite 后端和两个安全测试预设通过包内
 `exports` 一同分发。Release 资产可直接由 `dsh plugin add` 安装。
@@ -42,12 +44,14 @@ dsh plugin --profile web add file:C:\path\to\dsh-pentest.tar.gz
 
 ```powershell
 node "$env:USERPROFILE\.dsh\profiles\web\node_modules\@howmp\dsh-pentest\scripts\repair-composer.mjs"
+node "$env:USERPROFILE\.dsh\profiles\web\node_modules\@howmp\dsh-pentest\scripts\configure-redteam-suite.mjs"
 ```
 
 Linux/macOS：
 
 ```bash
 node "${DSH_HOME:-$HOME/.dsh}/profiles/web/node_modules/@howmp/dsh-pentest/scripts/repair-composer.mjs"
+node "${DSH_HOME:-$HOME/.dsh}/profiles/web/node_modules/@howmp/dsh-pentest/scripts/configure-redteam-suite.mjs"
 ```
 
 自定义 `DSH_HOME` 或 profile 时调整脚本路径。脚本默认通过 `npm root -g` 定位全局 DSH；
@@ -63,7 +67,7 @@ Windows 用户可以直接运行：
 .\start-pentest.bat
 ```
 
-启动脚本会自动运行上述修复。旧版输入框补丁曾只存在于开发电脑的全局 DSH 中；从 `rc.28` 起，
+启动脚本会自动运行输入框修复并配置完整安全能力套件。旧版输入框补丁曾只存在于开发电脑的全局 DSH 中；从 `rc.28` 起，
 源码 ZIP 和 Release 安装包都包含修复脚本。升级 DSH 后请重新运行启动脚本或输入框修复命令。
 
 ### Burp MCP 模式
@@ -122,6 +126,20 @@ npm run build:check
 - **挖洞模式**（预设 ID 仍为 `pentest`）：面向漏洞赏金和授权挖掘，先过滤明确不可获赏金的问题，按 `completion.canFinish` 收口；不会注入红队阶段门禁协议。
 - **红队模式**（预设 ID `redteam`）：面向明确授权的安全评估和攻击路径验证，不以赏金资格筛选；`eligible` 表示已授权范围，必须依次通过 `scope → recon → validation → review` 门禁。
 - 两种模式共享兼容的 `pentest_*` 工具、SQLite 数据结构和 Web 轨迹，但系统提示词、最终报告判定、工具卡片和会话标签按预设隔离。
+
+## 补充专业模式与插件
+
+安装套件后，模式选择器还会提供：资产测绘、攻防演练、二进制分析、云安全、代码审计、CTF 解题和事件响应。它们与项目自带的挖洞/红队模式并存，不覆盖原有预设。
+
+安全白名单共安装 15 个上游插件：AttackAtlas、自动推进、任务记忆、Hunter、MCP Studio、模式分组、产品子代理、红队成果、路由增强、扫描工具、安全执行约束、Semgrep 审计、会话脉冲、阶段门禁和轨迹仓库。扫描工具与 Semgrep 只挂载到对应预设，其余插件位于宿主平面；安全执行约束负责工作区写入、报告门禁、高风险命令确认与扫描速率纪律。
+
+配置器还会对固定版本的 MCP Studio 客户端执行一次签名校验兼容补丁，使其在当前 DSH Web 路由中直接使用裸 channel，避免设置页先请求错误 `/api` 地址产生 404。原文件只备份一次，未知代码布局会停止安装并回滚 profile。
+
+以下组件不会部署：`av-evasion`、`dsh-refusal-guard`、`dsh-webshell-mgr`。上游代码以提交 `e549e0f2fa515cce5f71842088f75333e7e997e7` 的 HTTPS 归档固定，配置器会备份 profile 与锁文件，失败时回滚。检查状态：
+
+```powershell
+node "$env:USERPROFILE\.dsh\profiles\web\node_modules\@howmp\dsh-pentest\scripts\configure-redteam-suite.mjs" --status
+```
 
 ## 红队工作流
 
@@ -186,8 +204,8 @@ npm run build:check
   两者共同强制授权边界、低噪声 WAF 策略和独立复核，红队额外启用阶段门禁和恢复协议。
 - **Skill 融合**（`src/dsh-pentest/src/clown-skill.ts`）：吸收 `clown-src-6k` 的锁面/自由跳节奏、
   一种子闭环、短表与价值排序、黑盒/白盒双轨、按特征选择知识模块和阶段自检；详细载荷资料不作为盲扫指令注入。
-- **Redteam 工作流桥接**（`src/dsh-pentest/src/redteam-model-bridge.ts`）：依据 MIT 许可项目
-  `SeaOf0/dsh-redteam-model` 重写适配阶段门禁、可恢复推进、正反证据计划和工具失败降级；适配取舍见
+- **Redteam 工作流与能力套件**（`src/dsh-pentest/src/redteam-model-bridge.ts`、`scripts/configure-redteam-suite.mjs`）：依据 MIT 许可项目
+  `SeaOf0/dsh-redteam-model` 重写适配核心门禁，并以安全白名单部署专业模式和运行时插件；适配清单见
   [`docs/REDTEAM-MODEL-INTEGRATION.md`](docs/REDTEAM-MODEL-INTEGRATION.md)。
 
 ## 已知边界
@@ -229,6 +247,7 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 │   └── dsh-storage-sqlite/        # sqlite 后端构建产物（来自 dsh 仓库，无独立源码）
 ├── preset/pentest/            # 「挖洞模式」agent 预设（保留旧 ID）
 ├── preset/redteam/            # 「红队模式」agent 预设（阶段门禁与恢复）
+├── scripts/configure-redteam-suite.mjs # 固定上游版本、安全过滤、profile 事务安装与模式部署
 ├── images/                    # README 界面预览截图
 └── README.md
 ```
