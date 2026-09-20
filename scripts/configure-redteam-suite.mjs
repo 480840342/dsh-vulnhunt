@@ -24,6 +24,13 @@ const require = createRequire(import.meta.url)
 
 export const UPSTREAM_COMMIT = 'e549e0f2fa515cce5f71842088f75333e7e997e7'
 
+/**
+ * Specialist modes deployed from the upstream collection.
+ *
+ * This package's own preset is `bughunt` (挖洞模式), so the upstream `pentest`
+ * (渗透测试模式) and `redteam` (安全研究员) ids are free and are deployed
+ * here. `av-evasion` stays excluded on the safety whitelist.
+ */
 export const SAFE_MODE_IDS = Object.freeze([
   'asset-mapping',
   'attack-defense',
@@ -32,6 +39,13 @@ export const SAFE_MODE_IDS = Object.freeze([
   'code-audit',
   'ctf-solver',
   'incident-response',
+  'pentest',
+  'redteam',
+])
+
+/** Upstream modes deliberately left out of this suite. */
+export const UPSTREAM_ONLY_MODE_IDS = Object.freeze([
+  'av-evasion',
 ])
 
 export const SAFE_HOST_PLUGINS = Object.freeze([
@@ -60,6 +74,16 @@ export const EXCLUDED_COMPONENTS = Object.freeze([
   'plugin:dsh-refusal-guard',
   'plugin:dsh-webshell-mgr',
 ])
+
+/**
+ * Preset ids this suite must never write into DSH_HOME.
+ *
+ * Empty: this package's own preset is `bughunt`, so upstream `pentest` /
+ * `redteam` are owned by the suite and should stay. Kept as a named list so
+ * a future colliding id can be purged on upgrade without rewriting the
+ * installer.
+ */
+export const CONFLICTING_PRESET_IDS = Object.freeze([])
 
 const MANAGER_PACKAGE = '@dsh-external/dsh-redteam-model'
 const MARKER_NAME = '.dsh-pentest-suite.json'
@@ -262,6 +286,40 @@ function preparePresetsRoot(home) {
   return root
 }
 
+/**
+ * Remove preset directories that would collide with this package's own
+ * `pentest` preset, or that belong to the upstream collection's own install.
+ * Only directories this suite previously deployed (tracked in the marker) or
+ * that are unowned leftovers of an upstream link are touched; unowned
+ * user-created presets are never deleted, only reported.
+ */
+function purgeConflictingPresets(presetsRoot, marker) {
+  const removed = []
+  const kept = []
+  for (const id of CONFLICTING_PRESET_IDS) {
+    const destination = path.join(presetsRoot, id)
+    if (!existsSync(destination)) continue
+    let owned = marker.modes?.[id] !== undefined
+    if (!owned) {
+      // A leftover from an upstream `.agent-presets` link looks like a symlink
+      // pointing at the collection's own `modes/pentest` etc.
+      try {
+        const target = readlinkSync(destination)
+        if (target.includes(`${path.sep}modes${path.sep}${id}`)) owned = true
+      } catch { /* real directory, unowned */ }
+    }
+    if (!owned) {
+      kept.push(id)
+      continue
+    }
+    const backupPath = `${destination}.dsh-pentest-removed-${Date.now()}`
+    renameSync(destination, backupPath)
+    removed.push({ id, backupPath })
+    if (marker.modes !== undefined) delete marker.modes[id]
+  }
+  return { removed, kept }
+}
+
 function deploySafeModes(suiteRoot, home) {
   const presetsRoot = preparePresetsRoot(home)
   const markerFile = path.join(presetsRoot, MARKER_NAME)
@@ -269,6 +327,8 @@ function deploySafeModes(suiteRoot, home) {
   if (marker.owner !== MARKER_OWNER || typeof marker.modes !== 'object' || marker.modes === null) {
     throw new Error(`unrecognized suite marker: ${markerFile}`)
   }
+
+  const purge = purgeConflictingPresets(presetsRoot, marker)
 
   const copied = []
   const skipped = []
@@ -317,7 +377,7 @@ function deploySafeModes(suiteRoot, home) {
   }
   marker.upstreamCommit = UPSTREAM_COMMIT
   atomicWriteJson(markerFile, marker)
-  return { copied, skipped, presetsRoot }
+  return { copied, skipped, presetsRoot, purge }
 }
 
 function suiteStatus(profileFile, suiteRoot, home) {
@@ -339,16 +399,22 @@ function suiteStatus(profileFile, suiteRoot, home) {
     const ready = existsSync(agent) && !readFileSync(agent, 'utf8').includes('dsh-refusal-guard')
     return { id, ready }
   })
+  // Coexistence precondition: no duplicated `pentest` row and no leftover
+  // upstream `redteam` row inside the shared preset root.
+  const conflicts = CONFLICTING_PRESET_IDS
+    .filter(id => existsSync(path.join(presetsRoot, id, 'preset.yml')))
   const mcpStudioClient = path.join(suiteRoot, 'plugins', 'dsh-mcp-studio', 'lib', 'client.js')
   const mcpStudioTransportReady = existsSync(mcpStudioClient)
     && readFileSync(mcpStudioClient, 'utf8').includes(MCP_STUDIO_FIXED_CHANNEL)
   return {
     ready: pluginStatus.every(item => item.dependency && item.bundled)
       && modes.every(item => item.ready)
+      && conflicts.length === 0
       && mcpStudioTransportReady,
     upstreamCommit: UPSTREAM_COMMIT,
     plugins: pluginStatus,
     modes,
+    conflicts,
     mcpStudioTransportReady,
     excluded: EXCLUDED_COMPONENTS,
   }

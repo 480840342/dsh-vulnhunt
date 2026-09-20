@@ -1,8 +1,11 @@
 # dsh-pentest
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）的可恢复授权安全测试插件。
-它提供彼此隔离的「挖洞模式」和「红队模式」，把侦察、资产归档、逐项验证、证据复核和报告生成连接成
-可追踪工作流，并在 Web 中提供探索链路、漏洞、资产和报告视图。
+它提供「挖洞模式」，把侦察、资产归档、逐项验证、证据复核和报告生成连接成可追踪工作流，
+并在 Web 中提供探索链路、漏洞、资产和报告视图。
+
+红队评估与其余专业安全模式由上游 [SeaOf0/dsh-redteam-model](https://github.com/SeaOf0/dsh-redteam-model)
+提供，两者按预设 ID 分工共存，不互相覆盖。详见[与上游集合共存](#与上游集合共存)。
 
 当前实现版本：`0.1.0-rc.36`
 
@@ -14,16 +17,14 @@
 - **漏洞质量门槛**：只有符合赏金/授权范围，并具备复现步骤、观察结果、对照结果和影响证据的问题才进入 finding。
 - **低噪声策略**：识别 WAF、CDN、风控和限速后降低频率与并发，避免高强度 fuzz、批量爆破和破坏性验证。
 - **覆盖检查**：对每个资产登记检查项；未覆盖资产、未完成任务或阻塞项存在时只输出阶段报告。
-- **阶段门禁**：`scope → recon → validation → review → complete` 由 `pentest_gate` 读取持久台账判定；四类侦察、待验证线索或阻塞项未收口时不能生成最终报告。
-- **可证伪意图**：测试 intent 可记录正证据、反证据、停止条件和低噪声替代路径；重试耗尽后自动把 fallback 写入恢复状态。
 - **Skill 融合**：吸收 `clown-src-6k-skill` 的锁面/自由跳、一种子闭环、短表、价值排序、黑盒/白盒双轨和按特征选择知识模块。
-- **双模式隔离**：旧 `pentest` 预设保留兼容 ID 并显示为「挖洞模式」；融合 `dsh-redteam-model` 阶段门禁、恢复、证据纪律和失败熔断的能力独立为「红队模式」。
+- **单一挖洞模式**：预设 ID 为 `bughunt`，显示为「挖洞模式」；上游 `pentest`（渗透测试）和 `redteam`（安全研究员）由本包套件一并部署，互不抢 ID。
 - **输入框兼容修复**：随包分发 DSH 会话组件修复，覆盖文字不可见、清空草稿后的高度和翻译扩展引起的 DOM 冲突；Windows 启动脚本自动执行。
 - **Burp MCP 模式**：可选接入 Burp 的 legacy SSE MCP，通过 `mcp-remote` 转为 DSH stdio；自动重连、超时和离线降级配置不会影响未使用 Burp 的安装。
-- **完整安全能力套件**：固定整合 `dsh-redteam-model` 的 7 个补充专业模式与 15 个安全插件，覆盖 AttackAtlas、扫描器、Semgrep、MCP Studio、会话脉冲、轨迹仓库、成果面板、阶段门禁、恢复推进和子代理协作。
+- **完整安全能力套件**：固定整合上游集合的 9 个专业模式（含渗透测试与安全研究员）与 15 个安全插件，覆盖 AttackAtlas、扫描器、Semgrep、MCP Studio、会话脉冲、轨迹仓库、成果面板、阶段门禁、恢复推进和子代理协作。
 - **安全白名单部署**：不加载免杀规避模式、拒答绕过插件和 WebShell 管理器；上游预设中的反拒答指令会在部署副本中替换为授权范围、低噪声和破坏性操作确认约束。
 
-本目录是自包含 bundle 包（`@howmp/dsh-pentest`）：宿主插件、Web 界面、SQLite 后端和两个安全测试预设通过包内
+本目录是自包含 bundle 包（`@howmp/dsh-pentest`）：宿主插件、Web 界面、SQLite 后端和挖洞预设通过包内
 `exports` 一同分发。Release 资产可直接由 `dsh plugin add` 安装。
 
 ## 安装
@@ -57,7 +58,7 @@ node "${DSH_HOME:-$HOME/.dsh}/profiles/web/node_modules/@howmp/dsh-pentest/scrip
 自定义 `DSH_HOME` 或 profile 时调整脚本路径。脚本默认通过 `npm root -g` 定位全局 DSH；
 非全局安装可附加 `--host-root /path/to/node_modules/@deepseek-ai/dsh`。
 支持会话组件 `0.1.0-rc.6`、`0.1.0-rc.8`，修改前自动备份，重复运行不会重复修改，未知版本会报错而不写入。
-修复后停止并重新启动 DSH Web，在浏览器强制刷新，然后在新会话中选择「挖洞模式」或「红队模式」。
+修复后停止并重新启动 DSH Web，在浏览器强制刷新，然后在新会话中选择「挖洞模式」。
 
 ### 本地源码启动
 
@@ -121,15 +122,15 @@ npm run build:check
 
 构建完成后，使用 `dist\howmp-dsh-pentest-<version>.tgz` 安装到 DSH Web profile。插件更新后需要重启正在运行的 DSH Web 进程。
 
-## 两种模式
+## 挖洞模式
 
-- **挖洞模式**（预设 ID 仍为 `pentest`）：面向漏洞赏金和授权挖掘，先过滤明确不可获赏金的问题，按 `completion.canFinish` 收口；不会注入红队阶段门禁协议。
-- **红队模式**（预设 ID `redteam`）：面向明确授权的安全评估和攻击路径验证，不以赏金资格筛选；`eligible` 表示已授权范围，必须依次通过 `scope → recon → validation → review` 门禁。
-- 两种模式共享兼容的 `pentest_*` 工具、SQLite 数据结构和 Web 轨迹，但系统提示词、最终报告判定、工具卡片和会话标签按预设隔离。
+- 预设 ID 为 `bughunt`，显示为「挖洞模式」：面向漏洞赏金和授权挖掘，先过滤明确不可获赏金的问题，
+  按 `completion.canFinish` 收口；不注入红队阶段门禁协议。
+- 渗透测试（`pentest`）和红队评估（`redteam`）由上游集合提供，见[与上游集合共存](#与上游集合共存)。
 
 ## 补充专业模式与插件
 
-安装套件后，模式选择器还会提供：资产测绘、攻防演练、二进制分析、云安全、代码审计、CTF 解题和事件响应。它们与项目自带的挖洞/红队模式并存，不覆盖原有预设。
+安装套件后，模式选择器还会提供：渗透测试、安全研究员、资产测绘、攻防演练、二进制分析、云安全、代码审计、CTF 解题和事件响应。
 
 安全白名单共安装 15 个上游插件：AttackAtlas、自动推进、任务记忆、Hunter、MCP Studio、模式分组、产品子代理、红队成果、路由增强、扫描工具、安全执行约束、Semgrep 审计、会话脉冲、阶段门禁和轨迹仓库。扫描工具与 Semgrep 只挂载到对应预设，其余插件位于宿主平面；安全执行约束负责工作区写入、报告门禁、高风险命令确认与扫描速率纪律。
 
@@ -141,16 +142,30 @@ npm run build:check
 node "$env:USERPROFILE\.dsh\profiles\web\node_modules\@howmp\dsh-pentest\scripts\configure-redteam-suite.mjs" --status
 ```
 
-## 红队工作流
+## 挖洞工作流
 
 1. 创建目标并记录授权说明。
 2. 建立侦察 intent，归档子域名、端点、端口、框架和其他资产。
-3. 将资产标记为 `eligible`、`unknown` 或 `excluded`，只有符合范围的资产才进入主动测试。
+3. 将资产标记为 `eligible`、`unknown` 或 `excluded`，只有符合赏金范围的资产才进入主动测试。
 4. 为资产登记覆盖项，按业务面和证据强度创建去重的测试任务。
 5. 深度测试 intent 填写 `evidencePlan.expected`、`negative`、`stopConditions` 和 `fallback`，使验证目标可证伪、可停止、可降级。
 6. 子 agent 通过 `pentest_submit` 提交事实、资产、覆盖状态和已复核结果；网络中断时使用相同 `submissionId` 重试。
-7. 阶段切换前调用 `pentest_gate`；`pentest_state.workflow.nextActions` 是重启、重连或“继续”后的恢复入口。
-8. 输出前检查任务、覆盖项、待验证线索和未测试资产；只有四道门禁全部通过时才生成最终报告。
+7. 输出前调用 `pentest_state` 检查 `completion`、任务、覆盖项和待验证事实。
+8. 只有 `completion.canFinish=true` 时才生成最终报告，否则输出阶段报告并列出剩余工作。
+
+## 与上游集合共存
+
+本包与 [SeaOf0/dsh-redteam-model](https://github.com/SeaOf0/dsh-redteam-model) 按预设 ID 分工，可同时安装。
+本包把挖洞预设改名为 `bughunt`，把 `pentest` / `redteam` 让给上游，`configure:suite` 会把上游完整专业模式一并部署：
+
+| 预设 ID | 归属 | 显示名 | 说明 |
+|---|---|---|---|
+| `bughunt` | **本包** | 挖洞模式 | 本包的探索链路/漏洞/资产/报告四视图挂在这里。 |
+| `pentest` | 上游 | 渗透测试模式 | Web/API/app/小程序专业渗透，走上游自己的门禁与界面。 |
+| `redteam` | 上游 | 安全研究员 | 上游通用总入口。 |
+| 其余专业模式 | 上游 | — | 资产测绘、攻防演练、二进制分析、云安全、代码审计、CTF 解题、事件响应。 |
+
+`av-evasion`、`dsh-refusal-guard`、`dsh-webshell-mgr` 仍不部署。用户自己创建的同名预设目录不会被覆盖，只会被跳过并提示。
 
 ## 使用边界
 
@@ -197,15 +212,16 @@ node "$env:USERPROFILE\.dsh\profiles\web\node_modules\@howmp\dsh-pentest\scripts
   `pentest_add_coverage` / `pentest_state` / `pentest_gate` / `pentest_graph` / `pentest_report`。资产、覆盖项和任务均带状态门槛。
 - **会话投影**（`projection.ts`）：折叠已日志化的 `pentest_*` 调用为 `{ goal, nodes, assets, tasks, coverage, edges, counts, completion, workflow }`，
   镜像 store 的引用拒绝；上限各 200，并支持旧日志回放。
-- **Web 标签页**（`src/dsh-client-ui-pentest`）：按会话注册（当前会话或列表祖先链含 `pentest` / `redteam` 预设即显示，
-  其他会话隐藏）；主标签按模式显示“挖洞”或“红队”，含四个子标签——探索链路（@xyflow/react 图，边带关系胶囊：意图链/产出/推导自/证实）、
+- **Web 标签页**（`src/dsh-client-ui-pentest`）：按会话注册（当前会话或列表祖先链含 `pentest` 预设即显示，
+  其他会话隐藏；上游 `redteam` 与专业模式会话不显示，它们有自己的界面）；主标签为「挖洞」，含四个子标签——
+  探索链路（@xyflow/react 图，边带关系胶囊：意图链/产出/推导自/证实）、
   漏洞（严重度/描述/可复现步骤/影响资产）、资产（列表/图两种模式）、报告（Markdown 渲染、复制与保存）。
-- **协议**（`instructions.ts`）：系统提示词段 `pentest:protocol`（order 50）按 `bughunt` / `redteam` 配置生成；
-  两者共同强制授权边界、低噪声 WAF 策略和独立复核，红队额外启用阶段门禁和恢复协议。
+- **协议**（`instructions.ts`）：系统提示词段 `pentest:protocol`（order 50）由 `bughunt` 配置生成，
+  强制授权边界、低噪声 WAF 策略和独立复核。红队阶段门禁协议不在本包内，由上游集合提供。
 - **Skill 融合**（`src/dsh-pentest/src/clown-skill.ts`）：吸收 `clown-src-6k` 的锁面/自由跳节奏、
   一种子闭环、短表与价值排序、黑盒/白盒双轨、按特征选择知识模块和阶段自检；详细载荷资料不作为盲扫指令注入。
-- **Redteam 工作流与能力套件**（`src/dsh-pentest/src/redteam-model-bridge.ts`、`scripts/configure-redteam-suite.mjs`）：依据 MIT 许可项目
-  `SeaOf0/dsh-redteam-model` 重写适配核心门禁，并以安全白名单部署专业模式和运行时插件；适配清单见
+- **能力套件**（`scripts/configure-redteam-suite.mjs`）：以安全白名单部署 `SeaOf0/dsh-redteam-model`
+  的专业模式与运行时插件，并保证该预设根里不存在与本包 `pentest` 冲突的同名目录；适配说明见
   [`docs/REDTEAM-MODEL-INTEGRATION.md`](docs/REDTEAM-MODEL-INTEGRATION.md)。
 
 ## 已知边界
@@ -230,11 +246,11 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 ├── cordis.patch.yml           # 补丁层：UI、sqlite 后端与 storage-domain 路由
 ├── lib/                       # 构建产物（npm pack 的内容）
 │   ├── index.js               #   包入口：空 apply
-│   ├── pentest.js             #   宿主安全测试插件：pentest_* 工具 + 双模式协议 + 会话投影
-│   ├── preset-root.js          #   注册包内只读安全测试预设目录（兼容 DSH rc.6）
+│   ├── pentest.js             #   宿主安全测试插件：pentest_* 工具 + 挖洞协议 + 会话投影
+│   ├── preset-root.js          #   注册包内只读挖洞预设目录（兼容 DSH rc.6）
 │   ├── storage-sqlite.js      #   安全测试记录专用的 sqlite 后端（node:sqlite）
 │   ├── ui-pentest.js          #   Web 插件宿主半：空 apply
-│   ├── ui-pentest.client.js   #   Web 插件浏览器半：挖洞/红队视图标签页（4 个子标签，@xyflow/react 内联）
+│   ├── ui-pentest.client.js   #   Web 插件浏览器半：挖洞视图标签页（4 个子标签，@xyflow/react 内联）
 │   └── invariant.js           #   探索图不变量伴生（与官方各包同构，生产环境不加载）
 ├── src/                       # 源码快照（继续开发/重新构建用）
 │   ├── index.ts / invariant.ts
@@ -245,9 +261,8 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 │   ├── dsh-pentest/               # host 插件源码构建产物
 │   ├── dsh-client-ui-pentest/     # Web 界面插件源码构建产物
 │   └── dsh-storage-sqlite/        # sqlite 后端构建产物（来自 dsh 仓库，无独立源码）
-├── preset/pentest/            # 「挖洞模式」agent 预设（保留旧 ID）
-├── preset/redteam/            # 「红队模式」agent 预设（阶段门禁与恢复）
-├── scripts/configure-redteam-suite.mjs # 固定上游版本、安全过滤、profile 事务安装与模式部署
+├── preset/bughunt/            # 「挖洞模式」agent 预设（id = bughunt，避免与上游 pentest 冲突）
+├── scripts/configure-redteam-suite.mjs # 固定上游版本、安全过滤、profile 事务安装与共存模式部署
 ├── images/                    # README 界面预览截图
 └── README.md
 ```
@@ -255,4 +270,4 @@ dsh-pentest/                   # 项目根 = bundle 包 @howmp/dsh-pentest（自
 ## 参考项目
 
 - [ARTEX](https://github.com/Autumn-27/ARTEX)
-- [SeaOf0/dsh-redteam-model](https://github.com/SeaOf0/dsh-redteam-model)（MIT；阶段门禁、恢复与证据治理思路）
+- [SeaOf0/dsh-redteam-model](https://github.com/SeaOf0/dsh-redteam-model)（MIT；专业模式、阶段门禁、恢复与证据治理）

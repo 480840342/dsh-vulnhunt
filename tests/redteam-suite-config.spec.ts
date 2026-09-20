@@ -3,10 +3,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  CONFLICTING_PRESET_IDS,
   EXCLUDED_COMPONENTS,
   SAFE_HOST_PLUGINS,
   SAFE_MODE_IDS,
   SAFE_PRESET_PLUGINS,
+  UPSTREAM_ONLY_MODE_IDS,
   planProfile,
   patchMcpStudioClient,
   resolveSuiteRoot,
@@ -25,8 +27,21 @@ describe('redteam suite safe integration', () => {
       'code-audit',
       'ctf-solver',
       'incident-response',
+      'pentest',
+      'redteam',
     ])
     expect(EXCLUDED_COMPONENTS).toContain('mode:av-evasion')
+  })
+
+  it('deploys upstream pentest/redteam because this package owns bughunt instead', () => {
+    // This package's own preset id is `bughunt` (挖洞模式), so the upstream
+    // `pentest` (渗透测试) and `redteam` (安全研究员) ids are free.
+    expect(SAFE_MODE_IDS).toContain('pentest')
+    expect(SAFE_MODE_IDS).toContain('redteam')
+    expect(CONFLICTING_PRESET_IDS).toEqual([])
+    expect(UPSTREAM_ONLY_MODE_IDS).toEqual(['av-evasion'])
+    expect(UPSTREAM_ONLY_MODE_IDS).not.toContain('pentest')
+    expect(UPSTREAM_ONLY_MODE_IDS).not.toContain('redteam')
   })
 
   it('ships every declared safe component in the pinned upstream package', () => {

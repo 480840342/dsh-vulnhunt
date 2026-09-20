@@ -1,6 +1,6 @@
 {
   "name": "@howmp/dsh-pentest",
-  "description": "DSH 授权安全测试插件：独立的挖洞与红队模式，以可恢复探索链路记录资产、证据与已验证漏洞。",
+  "description": "DSH 授权安全测试插件：挖洞模式，以可恢复探索链路记录资产、证据与已验证漏洞；专业安全模式由 SeaOf0/dsh-redteam-model 提供并共存。",
   "version": "0.1.0-rc.36",
   "publishConfig": {
     "access": "public"

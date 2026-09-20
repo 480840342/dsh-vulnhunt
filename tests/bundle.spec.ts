@@ -5,7 +5,7 @@
  * @module
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
@@ -13,10 +13,11 @@ import { apply as nodeApply } from '../lib/index.js'
 
 const PATCH_PATH = fileURLToPath(new URL('../cordis.patch.yml', import.meta.url))
 const PACKAGE_PATH = fileURLToPath(new URL('../package.json', import.meta.url))
-const BUGHUNT_PRESET_PATH = fileURLToPath(new URL('../preset/pentest/agent.cordis.yml', import.meta.url))
+const BUGHUNT_PRESET_PATH = fileURLToPath(new URL('../preset/bughunt/agent.cordis.yml', import.meta.url))
 const REDTEAM_PRESET_PATH = fileURLToPath(new URL('../preset/redteam/agent.cordis.yml', import.meta.url))
-const BUGHUNT_META_PATH = fileURLToPath(new URL('../preset/pentest/preset.yml', import.meta.url))
+const BUGHUNT_META_PATH = fileURLToPath(new URL('../preset/bughunt/preset.yml', import.meta.url))
 const REDTEAM_META_PATH = fileURLToPath(new URL('../preset/redteam/preset.yml', import.meta.url))
+const LEGACY_PENTEST_PRESET_PATH = fileURLToPath(new URL('../preset/pentest/preset.yml', import.meta.url))
 
 /** The loader's `!!js` scalar: parse as its raw expression string. */
 const jsExprTag = new yaml.Type('tag:yaml.org,2002:js', {
@@ -83,19 +84,25 @@ describe('pentest bundle', () => {
     expect(manifest.peerDependenciesMeta).toBeUndefined()
   })
 
-  it('ships distinct bug-hunting and red-team presets over the shared plugin', () => {
-    const metadata = [BUGHUNT_META_PATH, REDTEAM_META_PATH]
-      .map(path => yaml.load(readFileSync(path, 'utf8')) as { name: string })
-    expect(metadata.map(item => item.name)).toEqual(['挖洞模式', '红队模式'])
+  it('ships the bug-hunting preset over the shared plugin', () => {
+    const metadata = yaml.load(readFileSync(BUGHUNT_META_PATH, 'utf8')) as { name: string }
+    expect(metadata.name).toBe('挖洞模式')
 
-    const modes = [BUGHUNT_PRESET_PATH, REDTEAM_PRESET_PATH].map((path) => {
-      const rows = yaml.load(readFileSync(path, 'utf8'), { schema: patchSchema }) as Array<{
-        id: string
-        name: string
-        config?: { mode?: string }
-      }>
-      return rows.find(row => row.id === 'pentest' && row.name === '@howmp/dsh-pentest/pentest')?.config?.mode
-    })
-    expect(modes).toEqual(['bughunt', 'redteam'])
+    const rows = yaml.load(readFileSync(BUGHUNT_PRESET_PATH, 'utf8'), { schema: patchSchema }) as Array<{
+      id: string
+      name: string
+      config?: { mode?: string }
+    }>
+    const mode = rows.find(row => row.id === 'pentest' && row.name === '@howmp/dsh-pentest/pentest')?.config?.mode
+    expect(mode).toBe('bughunt')
+  })
+
+  it('does not ship pentest or redteam presets — those belong to the upstream collection', () => {
+    // Preset id `bughunt` is this package's 挖洞模式. Upstream owns `pentest`
+    // (渗透测试) and `redteam` (安全研究员); shipping either here would
+    // collide in the shared agent-preset registry.
+    expect(existsSync(REDTEAM_PRESET_PATH)).toBe(false)
+    expect(existsSync(REDTEAM_META_PATH)).toBe(false)
+    expect(existsSync(LEGACY_PENTEST_PRESET_PATH)).toBe(false)
   })
 })

@@ -6,8 +6,9 @@ This repository packages the pentest feature as one DSH bundle. `lib/` is the
 published runtime surface: `pentest.js`, `storage-sqlite.js`, and the Web
 client files are shipped by `npm pack`. Keep `cordis.patch.yml` aligned with
 these exports. `src/` holds source snapshots, `packages/` their built
-artifacts, and `tests/bundle.spec.ts` covers the patch. `preset/pentest/` is a
-read-only system preset registered by the bundle. `README.md` is for end users;
+artifacts, and `tests/bundle.spec.ts` covers the patch. `preset/bughunt/` is a
+read-only system preset registered by the bundle (`pentest`/`redteam` belong to
+the upstream collection). `README.md` is for end users;
 keep contributor procedures here.
 
 ## Build, Test, and Development Commands

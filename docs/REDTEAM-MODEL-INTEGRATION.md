@@ -2,8 +2,10 @@
 
 本项目对 `SeaOf0/dsh-redteam-model` 做了模块级审计，并以提交
 `e549e0f2fa515cce5f71842088f75333e7e997e7` 为固定上游版本。上游采用 MIT License。
-项目自带的「挖洞模式」和「红队模式」继续作为主入口；上游可安全使用的专业模式与插件通过
-`scripts/configure-redteam-suite.mjs` 事务式部署，不覆盖现有预设。
+项目自带「挖洞模式」（预设 ID `bughunt`）作为赏金挖掘入口；上游的「渗透测试模式」
+（`pentest`）、「安全研究员」（`redteam`）及其余专业模式与插件通过
+`scripts/configure-redteam-suite.mjs` 事务式部署。本包不再占用 `pentest` / `redteam` ID，
+因此两套预设可以共存。
 
 ## 已融合
 
@@ -16,7 +18,7 @@
 | 连续失败熔断 | 复用 `maxAttempts`；耗尽后进入 blocked，并把 intent fallback 带入 `lastError` |
 | 攻击面收口 | 四类基础侦察必须显式覆盖，高价值 vuln/finding/cve fact 必须派生验证 intent |
 | 状态可视化 | 会话投影增加 workflow，渗透页显示当前阶段、完成状态和未通过门禁数量 |
-| 专业模式 | 资产测绘、攻防演练、二进制分析、云安全、代码审计、CTF 解题、事件响应 |
+| 专业模式 | 渗透测试、安全研究员、资产测绘、攻防演练、二进制分析、云安全、代码审计、CTF 解题、事件响应 |
 | 扫描与审计 | `dsh-scanner-tools` 和 `dsh-semgrep-audit` 按预设挂载 |
 | 过程治理 | stage-gate、route-boost、auto-advance、session-pulse、trace-vault、campaign-memory |
 | 协作与展示 | AttackAtlas、Hunter、product-subagents、redteam-results、mode-group |
