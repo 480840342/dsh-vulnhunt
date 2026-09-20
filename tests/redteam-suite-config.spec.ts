@@ -11,6 +11,7 @@ import {
   UPSTREAM_ONLY_MODE_IDS,
   planProfile,
   patchMcpStudioClient,
+  patchInstalledStageGate,
   patchStageGateIntent,
   resolveSuiteRoot,
   sanitizeModeText,
@@ -126,5 +127,14 @@ describe('redteam suite safe integration', () => {
     expect(patchStageGateIntent(root).changed).toBe(false)
     expect(readFileSync(file, 'utf8')).toContain('return (async () => {')
     expect(readFileSync(`${file}.before-dsh-pentest-suite.bak`, 'utf8')).toContain('\t\t\t(async () => {')
+  })
+
+  it('patches a live profile copy of dsh-stage-gate', () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'dsh-home-'))
+    const pkg = path.join(home, 'profiles', 'web', 'node_modules', '@dsh-external', 'dsh-stage-gate', 'lib')
+    mkdirSync(pkg, { recursive: true })
+    writeFileSync(path.join(pkg, 'index.js'), '\t\texecute(args, exec) {\n\t\t\t(async () => {\n\t\t\t\treturn { ok: true }\n\t\t\t})()\n\t\t}\n')
+    expect(patchInstalledStageGate(home).changed).toBe(true)
+    expect(readFileSync(path.join(pkg, 'index.js'), 'utf8')).toContain('return (async () => {')
   })
 })

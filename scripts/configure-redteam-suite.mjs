@@ -258,7 +258,9 @@ export function patchMcpStudioClient(suiteRoot) {
  * DSH serializes `undefined` and throws INVALID_TOOL_OUTPUT / lossless JSON.
  */
 export function patchStageGateIntent(suiteRoot) {
-  const file = path.join(suiteRoot, 'plugins', 'dsh-stage-gate', 'lib', 'index.js')
+  const nested = path.join(suiteRoot, 'plugins', 'dsh-stage-gate', 'lib', 'index.js')
+  const direct = path.join(suiteRoot, 'lib', 'index.js')
+  const file = existsSync(nested) ? nested : direct
   const source = readFileSync(file, 'utf8')
   if (source.includes(STAGE_GATE_RETURNED_PROMISE)) return { file, changed: false }
   if (!source.includes(STAGE_GATE_DROPPED_PROMISE)) {
@@ -268,6 +270,18 @@ export function patchStageGateIntent(suiteRoot) {
   if (!existsSync(backupFile)) copyFileSync(file, backupFile)
   writeFileSync(file, source.replace(STAGE_GATE_DROPPED_PROMISE, STAGE_GATE_RETURNED_PROMISE), 'utf8')
   return { file, changed: true, backupFile }
+}
+
+/** Patch the live profile copy so `dsh web` heals operation_intent without re-running the suite. */
+export function patchInstalledStageGate(home = dshHome()) {
+  const candidates = [
+    path.join(home, 'profiles', 'web', 'node_modules', '@dsh-external', 'dsh-stage-gate'),
+    path.join(home, 'profiles', 'node_modules', '@dsh-external', 'dsh-stage-gate'),
+  ]
+  for (const pkg of candidates) {
+    if (existsSync(path.join(pkg, 'lib', 'index.js'))) return patchStageGateIntent(pkg)
+  }
+  return { changed: false, skipped: true }
 }
 
 function readJson(file, fallback = undefined) {
