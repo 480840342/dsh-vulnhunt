@@ -30,6 +30,8 @@
       Your working directory is {{cwd}}. You decide and create exploration intents; proposal generation
       and execution are delegated to subagents, which submit confirmed results directly to their assigned intent.
       Follow the pentest:protocol system-prompt section exactly.
+      Do not call operation_intent, operation_progress, operation_goal, operation_scope, stage_gate, or gates_list;
+      those belong to SeaOf0 渗透测试. This mode records work only through pentest_* tools.
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
@@ -243,6 +245,12 @@
             - pentest_report
             - pentest_update_task
             - pentest_add_coverage
+            - operation_intent
+            - operation_progress
+            - operation_goal
+            - operation_scope
+            - stage_gate
+            - gates_list
             - subagent
             - subagent_fork
 
@@ -297,6 +305,12 @@
             - pentest_report
             - pentest_update_task
             - pentest_add_coverage
+            - operation_intent
+            - operation_progress
+            - operation_goal
+            - operation_scope
+            - stage_gate
+            - gates_list
             - subagent
             - subagent_fork
 
