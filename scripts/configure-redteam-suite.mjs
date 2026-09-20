@@ -109,8 +109,83 @@ function activeProfile(argv = process.argv.slice(2)) {
   return value && !value.startsWith('-') ? value : 'web'
 }
 
-export function resolveSuiteRoot() {
-  return path.dirname(require.resolve(`${MANAGER_PACKAGE}/package.json`))
+function looksLikeSuiteRoot(directory) {
+  return existsSync(path.join(directory, 'package.json'))
+    && existsSync(path.join(directory, 'modes'))
+    && existsSync(path.join(directory, 'plugins'))
+}
+
+function cachedSuiteRoot(home) {
+  const cache = path.join(home, 'cache', `dsh-redteam-model-${UPSTREAM_COMMIT}`)
+  return looksLikeSuiteRoot(cache) ? cache : undefined
+}
+
+/**
+ * Locate the pinned SeaOf0 collection without putting a GitHub URL in
+ * package.json (pnpm 12 `blockExoticSubdeps` rejects that during
+ * `dsh plugin add`). Order: already-installed node_modules, then DSH cache.
+ */
+export function resolveSuiteRoot(home = dshHome()) {
+  try {
+    const fromModules = path.dirname(require.resolve(`${MANAGER_PACKAGE}/package.json`))
+    if (looksLikeSuiteRoot(fromModules)) return fromModules
+  } catch { /* not installed as a package */ }
+  const cached = cachedSuiteRoot(home)
+  if (cached) return cached
+  throw new Error(`upstream suite ${UPSTREAM_COMMIT} is not installed. Run configure:suite (it fetches ${UPSTREAM_ARCHIVE}) or install SeaOf0/dsh-redteam-model separately.`)
+}
+
+function downloadFile(url, destination) {
+  const script = `fetch(process.argv[1]).then(async (response) => {
+    if (!response.ok) throw new Error(response.status + ' ' + response.statusText)
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(process.argv[2], Buffer.from(await response.arrayBuffer()))
+  }).catch((error) => { console.error(error); process.exit(1) })`
+  const result = spawnSync(process.execPath, ['-e', script, url, destination], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  if (result.status !== 0) {
+    throw new Error(`failed to download ${url}: ${(result.stderr || result.stdout || '').trim() || `exit ${result.status}`}`)
+  }
+}
+
+function extractArchive(archive, destination) {
+  mkdirSync(destination, { recursive: true })
+  const result = spawnSync('tar', ['-xzf', archive, '-C', destination, '--strip-components=1'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  })
+  if (result.status !== 0) {
+    throw new Error(`failed to extract ${archive}: ${(result.stderr || result.stdout || '').trim() || `exit ${result.status}`}`)
+  }
+}
+
+/** Fetch the pinned archive into `$DSH_HOME/cache` when node_modules does not have it. */
+export function ensureSuiteRoot(home = dshHome()) {
+  try {
+    return resolveSuiteRoot(home)
+  } catch {
+    /* fetch below */
+  }
+  const cache = path.join(home, 'cache', `dsh-redteam-model-${UPSTREAM_COMMIT}`)
+  const staging = `${cache}.tmp-${process.pid}-${Date.now()}`
+  mkdirSync(staging, { recursive: true })
+  const archive = path.join(staging, 'src.tar.gz')
+  try {
+    downloadFile(UPSTREAM_ARCHIVE, archive)
+    extractArchive(archive, staging)
+    rmSync(archive, { force: true })
+    if (!looksLikeSuiteRoot(staging)) throw new Error(`downloaded archive is missing modes/plugins: ${staging}`)
+    rmSync(cache, { recursive: true, force: true })
+    mkdirSync(path.dirname(cache), { recursive: true })
+    renameSync(staging, cache)
+    return cache
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true })
+    throw error
+  }
 }
 
 function linkSpec(directory) {

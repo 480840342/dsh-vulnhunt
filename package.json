@@ -39,7 +39,6 @@
   "license": "MIT",
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.1",
-    "@dsh-external/dsh-redteam-model": "https://github.com/SeaOf0/dsh-redteam-model/archive/e549e0f2fa515cce5f71842088f75333e7e997e7.tar.gz",
     "js-yaml": "4.3.1",
     "zod": "^4.4.3"
   },

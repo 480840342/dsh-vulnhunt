@@ -29,6 +29,14 @@
 
 ## 安装
 
+本包 **不再** 把 `SeaOf0/dsh-redteam-model` 写成 URL 依赖。pnpm 12 的 `blockExoticSubdeps` 会拒绝这种子依赖，导致 `dsh plugin add` 报 `ERR_PNPM_EXOTIC_SUBDEP`。专业模式改由 `configure:suite` 在安装后按需下载固定提交。
+
+### 从 GitHub 源码归档安装
+
+```bash
+dsh plugin --profile web add https://github.com/480840342/dsh-vulnhunt/archive/refs/heads/main.tar.gz
+```
+
 ### 从 Release URL 安装
 
 ```powershell

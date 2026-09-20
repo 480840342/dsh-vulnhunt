@@ -82,6 +82,10 @@ describe('pentest bundle', () => {
     expect(manifest.files).toContain('scripts/configure-redteam-suite.mjs')
     expect(manifest.bin?.['dsh-pentest-suite']).toBe('./scripts/configure-redteam-suite.mjs')
     expect(manifest.peerDependenciesMeta).toBeUndefined()
+    expect(manifest.dependencies?.['@dsh-external/dsh-redteam-model']).toBeUndefined()
+    for (const spec of Object.values(manifest.dependencies ?? {})) {
+      expect(spec, spec).not.toMatch(/^https?:/)
+    }
   })
 
   it('ships the bug-hunting preset over the shared plugin', () => {
