@@ -59,6 +59,23 @@ describe('portable composer repair', () => {
     expect(findConversation(root)).toBe(dependency)
   })
 
+  it('locates the conversation package from DSH_HOME profile node_modules', async () => {
+    const { locateConversation } = await import('../scripts/repair-composer.mjs')
+    const home = mkdtempSync(join(tmpdir(), 'dsh-home-'))
+    directories.push(home)
+    const dependency = join(home, 'profiles/web/node_modules/@deepseek-ai/dsh-client-ui-conversation')
+    mkdirSync(dependency, { recursive: true })
+    writeFileSync(join(dependency, 'package.json'), '{"name":"@deepseek-ai/dsh-client-ui-conversation"}')
+    const previous = process.env.DSH_HOME
+    process.env.DSH_HOME = home
+    try {
+      expect(locateConversation()).toBe(dependency)
+    } finally {
+      if (previous === undefined) delete process.env.DSH_HOME
+      else process.env.DSH_HOME = previous
+    }
+  })
+
   it('retains the composition guard and leaves unrelated host code intact', () => {
     const patched = patchComposer(original + '\nconst unrelated = 42;', '0.1.0-rc.6')
     expect(patched).toContain('if (!composing && (e.key === "Backspace" || e.key === "Delete") && draft === "")')

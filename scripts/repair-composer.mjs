@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -81,6 +82,13 @@ export function findConversation(hostRoot) {
   return dirname(require.resolve(`${PACKAGE}/package.json`))
 }
 
+export function dshHome() {
+  const configured = process.env.DSH_HOME?.trim()
+  if (!configured || configured === '~') return configured === '~' ? homedir() : join(homedir(), '.dsh')
+  if (configured.startsWith('~/') || configured.startsWith('~\\')) return resolve(homedir(), configured.slice(2))
+  return resolve(configured)
+}
+
 export function globalHost() {
   // Avoid a shell invocation: Windows npm.cmd needs cmd.exe, npm's JS entry does not.
   const npmCandidates = [join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')]
@@ -94,13 +102,63 @@ export function globalHost() {
   return join(globalRoot, '@deepseek-ai/dsh')
 }
 
+/** Profile trees first (DSH 0.1.5+), then the global CLI package. */
+export function hostCandidates(home = dshHome()) {
+  const list = [
+    join(home, 'profiles', 'web', 'node_modules', '@deepseek-ai', 'dsh'),
+    join(home, 'profiles', 'node_modules', '@deepseek-ai', 'dsh'),
+  ]
+  try { list.push(globalHost()) } catch { /* no global CLI */ }
+  return list.filter(directory => existsSync(join(directory, 'package.json')))
+}
+
+function conversationFromTree(nodeModules) {
+  const direct = join(nodeModules, PACKAGE, 'package.json')
+  if (existsSync(direct)) return dirname(direct)
+  try {
+    return dirname(createRequire(join(nodeModules, 'package.json')).resolve(`${PACKAGE}/package.json`))
+  } catch {
+    return undefined
+  }
+}
+
+/** Resolve the conversation UI from DSH_HOME profiles, then any host package. */
+export function locateConversation(explicitHost) {
+  if (explicitHost) return findConversation(explicitHost)
+  const home = dshHome()
+  const trees = [
+    join(home, 'profiles', 'web', 'node_modules'),
+    join(home, 'profiles', 'node_modules'),
+  ]
+  for (const tree of trees) {
+    const found = conversationFromTree(tree)
+    if (found) return found
+  }
+  const hosts = hostCandidates(home)
+  const errors = []
+  for (const host of hosts) {
+    try { return findConversation(host) } catch (error) { errors.push(`${host}: ${error.message}`) }
+  }
+  throw new Error(`Cannot find ${PACKAGE}. cwd=${process.cwd()}; DSH_HOME=${home}; tried ${[...trees, ...hosts].join(', ') || '(none)'}${errors.length ? `; ${errors.join('; ')}` : ''}. Pass --package-dir or --host-root.`)
+}
+
 function main() {
   const { values } = parseArgs({ options: {
     'host-root': { type: 'string' },
     'package-dir': { type: 'string' },
     check: { type: 'boolean', default: false },
   } })
-  const directory = values['package-dir'] ?? findConversation(values['host-root'] ?? globalHost())
+  const directory = values['package-dir'] ?? locateConversation(values['host-root'])
+  const metadata = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
+  if (!SUPPORTED.has(metadata.version)) {
+    console.log(JSON.stringify({
+      file: join(directory, 'lib/client.js'),
+      version: metadata.version,
+      changed: false,
+      skipped: true,
+    }))
+    return
+  }
   const result = repairPackage(directory, { check: values.check })
   console.log(JSON.stringify(result))
   if (result.check && result.changed) process.exitCode = 2

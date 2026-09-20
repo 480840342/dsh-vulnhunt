@@ -23,6 +23,7 @@ import { pathToFileURL } from 'node:url'
 const require = createRequire(import.meta.url)
 
 export const UPSTREAM_COMMIT = 'e549e0f2fa515cce5f71842088f75333e7e997e7'
+export const UPSTREAM_ARCHIVE = `https://github.com/SeaOf0/dsh-redteam-model/archive/${UPSTREAM_COMMIT}.tar.gz`
 
 /**
  * Specialist modes deployed from the upstream collection.
@@ -495,7 +496,7 @@ function suiteStatus(profileFile, suiteRoot, home) {
   }
 }
 
-export function installSuite({ profile = 'web', suiteRoot = resolveSuiteRoot(), home = dshHome() } = {}) {
+export function installSuite({ profile = 'web', home = dshHome(), suiteRoot = ensureSuiteRoot(home) } = {}) {
   const profileDir = path.join(home, 'profiles', profile)
   const profileFile = path.join(profileDir, 'package.json')
   const lockFile = path.join(profileDir, 'pnpm-lock.yaml')
@@ -506,7 +507,7 @@ export function installSuite({ profile = 'web', suiteRoot = resolveSuiteRoot(), 
     const current = readJson(profileFile, {})
     atomicWriteJson(profileFile, planProfile(current, suiteRoot))
     runPnpm(profileDir)
-    const freshSuiteRoot = resolveSuiteRoot()
+    const freshSuiteRoot = ensureSuiteRoot(home)
     const mcpStudioPatch = patchMcpStudioClient(freshSuiteRoot)
     const peerLinks = linkRuntimePeers(freshSuiteRoot, home)
     const modeDeployment = deploySafeModes(freshSuiteRoot, home)
@@ -530,7 +531,7 @@ async function main() {
   const argv = process.argv.slice(2)
   const profile = activeProfile(argv)
   const home = dshHome()
-  const suiteRoot = resolveSuiteRoot()
+  const suiteRoot = argv.includes('--status') ? resolveSuiteRoot(home) : ensureSuiteRoot(home)
   const profileFile = path.join(home, 'profiles', profile, 'package.json')
   const result = argv.includes('--status')
     ? suiteStatus(profileFile, suiteRoot, home)

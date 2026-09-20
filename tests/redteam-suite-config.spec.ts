@@ -13,12 +13,15 @@ import {
   patchMcpStudioClient,
   resolveSuiteRoot,
   sanitizeModeText,
+  UPSTREAM_ARCHIVE,
   UPSTREAM_COMMIT,
 } from '../scripts/configure-redteam-suite.mjs'
 
 describe('redteam suite safe integration', () => {
   it('pins the reviewed upstream revision and exposes all safe specialist modes', () => {
     expect(UPSTREAM_COMMIT).toMatch(/^[0-9a-f]{40}$/)
+    expect(UPSTREAM_ARCHIVE).toContain(UPSTREAM_COMMIT)
+    expect(UPSTREAM_ARCHIVE).toMatch(/^https:\/\/github.com\/SeaOf0\/dsh-redteam-model\/archive\//)
     expect(SAFE_MODE_IDS).toEqual([
       'asset-mapping',
       'attack-defense',
