@@ -11,6 +11,7 @@ import {
   UPSTREAM_ONLY_MODE_IDS,
   planProfile,
   patchMcpStudioClient,
+  patchStageGateIntent,
   resolveSuiteRoot,
   sanitizeModeText,
   UPSTREAM_ARCHIVE,
@@ -112,5 +113,18 @@ describe('redteam suite safe integration', () => {
     expect(patchMcpStudioClient(root).changed).toBe(false)
     expect(readFileSync(file, 'utf8')).toContain('const apiChannel = STUDIO_CHANNEL;')
     expect(readFileSync(`${file}.before-dsh-pentest-suite.bak`, 'utf8')).toContain('"/api" + STUDIO_CHANNEL')
+  })
+
+  it('returns the operation_intent promise so DSH can serialize the tool output', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'dsh-suite-'))
+    const directory = path.join(root, 'plugins', 'dsh-stage-gate', 'lib')
+    mkdirSync(directory, { recursive: true })
+    const file = path.join(directory, 'index.js')
+    writeFileSync(file, 'ctx.tools.register(defineTool({\n\t\tname: "operation_intent",\n\t\texecute(args, exec) {\n\t\t\t(async () => {\n\t\t\t\treturn { ok: true }\n\t\t\t})()\n\t\t}\n}))\n')
+
+    expect(patchStageGateIntent(root).changed).toBe(true)
+    expect(patchStageGateIntent(root).changed).toBe(false)
+    expect(readFileSync(file, 'utf8')).toContain('return (async () => {')
+    expect(readFileSync(`${file}.before-dsh-pentest-suite.bak`, 'utf8')).toContain('\t\t\t(async () => {')
   })
 })

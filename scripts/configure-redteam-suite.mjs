@@ -92,6 +92,8 @@ const MARKER_OWNER = '@howmp/dsh-pentest'
 const SAFE_EXPRESSION = 'Expression discipline: operate only within the explicit authorization and target scope recorded for this task. Prefer read-only, rate-limited and reversible validation; request confirmation before invasive or disruptive actions, preserve evidence, and stop when scope or safety is uncertain.'
 const MCP_STUDIO_OLD_CHANNEL = 'const apiChannel = "/api" + STUDIO_CHANNEL;'
 const MCP_STUDIO_FIXED_CHANNEL = 'const apiChannel = STUDIO_CHANNEL;'
+const STAGE_GATE_DROPPED_PROMISE = '\t\texecute(args, exec) {\n\t\t\t(async () => {'
+const STAGE_GATE_RETURNED_PROMISE = '\t\texecute(args, exec) {\n\t\t\treturn (async () => {'
 
 function packageName(plugin) {
   return `@dsh-external/${plugin}`
@@ -248,6 +250,23 @@ export function patchMcpStudioClient(suiteRoot) {
   const backupFile = `${file}.before-dsh-pentest-suite.bak`
   if (!existsSync(backupFile)) copyFileSync(file, backupFile)
   writeFileSync(file, source.replace(MCP_STUDIO_OLD_CHANNEL, MCP_STUDIO_FIXED_CHANNEL), 'utf8')
+  return { file, changed: true, backupFile }
+}
+
+/**
+ * SeaOf0's operation_intent starts an async IIFE and does not return it, so
+ * DSH serializes `undefined` and throws INVALID_TOOL_OUTPUT / lossless JSON.
+ */
+export function patchStageGateIntent(suiteRoot) {
+  const file = path.join(suiteRoot, 'plugins', 'dsh-stage-gate', 'lib', 'index.js')
+  const source = readFileSync(file, 'utf8')
+  if (source.includes(STAGE_GATE_RETURNED_PROMISE)) return { file, changed: false }
+  if (!source.includes(STAGE_GATE_DROPPED_PROMISE)) {
+    throw new Error(`unsupported stage-gate layout; no files changed: ${file}`)
+  }
+  const backupFile = `${file}.before-dsh-pentest-suite.bak`
+  if (!existsSync(backupFile)) copyFileSync(file, backupFile)
+  writeFileSync(file, source.replace(STAGE_GATE_DROPPED_PROMISE, STAGE_GATE_RETURNED_PROMISE), 'utf8')
   return { file, changed: true, backupFile }
 }
 
@@ -509,6 +528,7 @@ export function installSuite({ profile = 'web', home = dshHome(), suiteRoot = en
     runPnpm(profileDir)
     const freshSuiteRoot = ensureSuiteRoot(home)
     const mcpStudioPatch = patchMcpStudioClient(freshSuiteRoot)
+    const stageGatePatch = patchStageGateIntent(freshSuiteRoot)
     const peerLinks = linkRuntimePeers(freshSuiteRoot, home)
     const modeDeployment = deploySafeModes(freshSuiteRoot, home)
     return {
@@ -517,6 +537,7 @@ export function installSuite({ profile = 'web', home = dshHome(), suiteRoot = en
       profileFile,
       backups,
       mcpStudioPatch,
+      stageGatePatch,
       peerLinks,
       modeDeployment,
     }
